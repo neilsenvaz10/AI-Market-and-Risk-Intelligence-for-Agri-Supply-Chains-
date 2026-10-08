@@ -174,6 +174,25 @@ export async function getMandiQualityReport() {
   return await fetchWithFallback('/api/mandi/quality/report');
 }
 
+/**
+ * Phase 4 — Price forecasting API client.
+ *
+ * `getForecast` resolves the commodity/mandi pair server-side (code, exact name or
+ * id). A 200 response with `available: false` is a valid, non-error outcome: it
+ * carries a `reason.code` (NO_MARKET_DATA | INSUFFICIENT_HISTORY | NO_FORECAST |
+ * NO_FORECAST_FOR_FILTER) so the UI can show the right empty state instead of a
+ * fabricated price. Genuine failures still throw ApiError.
+ */
+export async function getForecast(commodity, mandi, options = {}) {
+  const params = new URLSearchParams();
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') params.set(key, value);
+  });
+  const query = params.toString();
+  const endpoint = `/api/forecast/${encodeURIComponent(commodity)}/${encodeURIComponent(mandi)}${query ? `?${query}` : ''}`;
+  return await fetchWithFallback(endpoint);
+}
+
 export default {
   checkBackendHealth,
   checkDatabaseHealth,
@@ -186,5 +205,6 @@ export default {
   getPipelineStatus,
   triggerMandiSync,
   getMandiQualityReport,
+  getForecast,
   getBaseUrl: () => resolvedApiUrl,
 };

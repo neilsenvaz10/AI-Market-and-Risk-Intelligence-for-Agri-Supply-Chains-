@@ -5,6 +5,7 @@ import { translateLocation } from '../constants/profile';
 import { t } from '../i18n/strings';
 import { getLatestMandiPrices } from '../services/api';
 import { formatReportDate, formatTrend, hasTrend, sourceLabel } from '../utils/mandiFeed';
+import ForecastPanel from '../components/ForecastPanel';
 
 // Translated names for the seeded mandis; other mandis use the name from the API
 const MANDI_NAME_KEYS = {
@@ -30,6 +31,8 @@ export default function MandisPage() {
   const { language } = useAuth();
   const [feed, setFeed] = useState({ status: 'loading', rows: [] }); // 'loading' | 'ready' | 'error'
   const [reloadKey, setReloadKey] = useState(0);
+  // Phase 4: which mandi's price forecast is expanded (one at a time, fetched on demand).
+  const [forecastMandiId, setForecastMandiId] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -149,6 +152,23 @@ export default function MandisPage() {
                 {' · '}
                 {t(language, 'mandiFeed.source', { source: sourceLabel(mandi, language) })}
               </p>
+              {/* Phase 4: 1-7 day price forecast for this mandi and crop, fetched on demand. */}
+              <button
+                type="button"
+                onClick={() => setForecastMandiId((current) => (current === mandi.mandi_id ? null : mandi.mandi_id))}
+                aria-expanded={forecastMandiId === mandi.mandi_id}
+                className="mt-2 w-full py-2 bg-secondary-container hover:bg-surface-container text-on-secondary-container text-center font-bold text-body-sm rounded-lg transition-colors flex items-center justify-center gap-1"
+              >
+                <span className="material-symbols-outlined text-[16px]">trending_up</span>
+                <span>
+                  {forecastMandiId === mandi.mandi_id
+                    ? t(language, 'forecast.hide')
+                    : t(language, 'forecast.show')}
+                </span>
+              </button>
+              {forecastMandiId === mandi.mandi_id && (
+                <ForecastPanel commodity={mandi.commodity_code} mandi={mandi.mandi_code} />
+              )}
               <Link
                 to="/recommendation"
                 className="mt-2 w-full py-2 bg-surface-container-low hover:bg-surface-container text-primary text-center font-bold text-body-sm rounded-lg transition-colors flex items-center justify-center gap-1"

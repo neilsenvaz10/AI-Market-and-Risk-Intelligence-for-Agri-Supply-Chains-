@@ -5,6 +5,7 @@ import healthRoutes from './routes/health.routes.js';
 import createAuthRoutes from './routes/auth.routes.js';
 import createFarmerRoutes from './routes/farmer.routes.js';
 import createMandiRoutes from './routes/mandi.routes.js';
+import createForecastRoutes from './routes/forecast.routes.js';
 import { requireAuth as defaultRequireAuth } from './middleware/auth.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { createEmailProvider } from './services/email/emailProvider.js';
@@ -44,13 +45,17 @@ export function createApp({
     res.json({
       name: 'FASALYTICS API Backend',
       version: '1.0.0',
-      phase: 'Phase 3 - Mandi Data Pipeline',
+      phase: 'Phase 4 - Price Forecasting',
       endpoints: {
         health: '/api/health',
         databaseHealth: '/api/health/database',
         mlHealth: '/api/health/ml',
         session: '/api/auth/session',
         farmerProfile: '/api/farmers/me',
+        forecast: {
+          byCommodityAndMandi: '/api/forecast/:commodity/:mandi',
+          query: '?horizon=1..7&modelVersion=<version>&includeSample=false&order=ASC|DESC',
+        },
         mandi: {
           mandis: '/api/mandi/mandis',
           mandiDetails: '/api/mandi/mandis/:id',
@@ -70,6 +75,7 @@ export function createApp({
   app.use('/api/auth', createAuthRoutes(requireAuth));
   app.use('/api/farmers', createFarmerRoutes(requireAuth));
   app.use('/api/mandi', createMandiRoutes({ requireAuth, ...mandiRoutesOptions }));
+  app.use('/api/forecast', createForecastRoutes());
 
   // Error handling
   app.use(notFoundHandler);

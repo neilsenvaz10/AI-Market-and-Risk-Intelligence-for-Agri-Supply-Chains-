@@ -141,12 +141,14 @@ test('GET /commodities, /sync/status and /quality/report expose honest counts', 
   assert.equal(report.body.data.storage_safety.max_batch_limit, 10000);
 });
 
-test('GET / advertises the Phase 3 mandi endpoints (restored from the superseded api.test.js)', async () => {
+test('GET / advertises the Phase 3 mandi and Phase 4 forecast endpoints', async () => {
   const r = await call('GET', '/');
   assert.equal(r.status, 200);
-  assert.equal(r.body.phase, 'Phase 3 - Mandi Data Pipeline');
+  assert.equal(r.body.phase, 'Phase 4 - Price Forecasting');
   assert.equal(r.body.endpoints.mandi.qualityReport, '/api/mandi/quality/report');
   assert.equal(r.body.endpoints.mandi.sync, '/api/mandi/sync');
+  // Phase 4 adds the read-only forecast endpoint alongside the Phase 3 routes.
+  assert.equal(r.body.endpoints.forecast.byCommodityAndMandi, '/api/forecast/:commodity/:mandi');
 });
 
 test('GET /api/health and /api/health/database operate normally (restored)', async () => {

@@ -48,5 +48,11 @@ temp/
 # Downloaded mandi datasets (CSV/raw/manifests from npm run ceda:export)
 backend/data/
 
+# Phase 4 trained forecasting models (npm run forecast:train) — build outputs,
+# regenerated deterministically from the price history. Anchored to both the
+# service directory and the repository root so the path never depends on the CWD.
+ml-service/artifacts/
+/artifacts/
+
 # PostgreSQL Docker Volumes
 postgres_data/

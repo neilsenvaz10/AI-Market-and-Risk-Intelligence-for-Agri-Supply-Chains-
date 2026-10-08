@@ -14,6 +14,7 @@ import { createApp } from '../../src/app.js';
 import { MandiPipeline } from '../../src/pipeline/index.js';
 import { loadRow, traceRow } from '../../src/pipeline/trace.js';
 import { createLiveTestDatabase, dropLiveTestDatabase, liveTestDatabaseStatus } from '../../scripts/live-test-db.js';
+import { listMigrationFiles } from '../../scripts/migrate.js';
 
 assertIsolatedDatabase();
 const quiet = { log() {} };
@@ -37,7 +38,8 @@ after(async () => {
 test('live-test database: create applies every migration, status reports it, drop needs explicit confirmation', async () => {
   const status = await createLiveTestDatabase(liveName, { log: quiet });
   assert.deepEqual(status.pending, []);
-  assert.equal(status.applied.length, 4);
+  // Compared against the migration directory so adding a phase does not break this.
+  assert.equal(status.applied.length, (await listMigrationFiles()).length);
 
   const info = await liveTestDatabaseStatus(liveName);
   assert.equal(info.exists, true);
