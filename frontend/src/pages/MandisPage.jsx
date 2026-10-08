@@ -7,10 +7,10 @@ export default function MandisPage() {
   const { language } = useAuth();
 
   const mandis = [
-    { name: 'Pune APMC (Gultekdi)', distance: '12 km', price: '₹2,050 / qtl', trend: '+4.2%', volumeKey: 'mandis.volume.high' },
-    { name: 'Ahmednagar Mandi', distance: '45 km', price: '₹1,920 / qtl', trend: '-1.5%', volumeKey: 'mandis.volume.medium' },
-    { name: 'Nashik Market Yard', distance: '88 km', price: '₹2,110 / qtl', trend: '+6.1%', volumeKey: 'mandis.volume.veryHigh' },
-    { name: 'Baramati APMC', distance: '72 km', price: '₹1,880 / qtl', trend: '+0.5%', volumeKey: 'mandis.volume.moderate' },
+    { nameKey: 'mandis.puneName', distance: '12 km', priceNum: '₹2,050', trend: '+4.2%', volumeKey: 'mandis.volume.high' },
+    { nameKey: 'mandis.ahmednagarName', distance: '45 km', priceNum: '₹1,920', trend: '-1.5%', volumeKey: 'mandis.volume.medium' },
+    { nameKey: 'mandis.nashikName', distance: '88 km', priceNum: '₹2,110', trend: '+6.1%', volumeKey: 'mandis.volume.veryHigh' },
+    { nameKey: 'mandis.baramatiName', distance: '72 km', priceNum: '₹1,880', trend: '+0.5%', volumeKey: 'mandis.volume.moderate' },
   ];
 
   return (
@@ -33,7 +33,7 @@ export default function MandisPage() {
         {mandis.map((mandi, idx) => (
           <div key={idx} className="bg-surface-container-lowest p-4 rounded-xl shadow-sm border border-outline-variant/30 flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-on-surface text-body-lg">{mandi.name}</span>
+              <span className="font-bold text-on-surface text-body-lg">{t(language, mandi.nameKey)}</span>
               <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${mandi.trend.startsWith('+') ? 'bg-secondary-container text-on-secondary-container' : 'bg-error-container text-error'}`}>
                 {mandi.trend}
               </span>
@@ -41,7 +41,9 @@ export default function MandisPage() {
             <div className="flex items-baseline justify-between">
               <div>
                 <span className="text-body-sm text-on-surface-variant">{t(language, 'mandis.modalPrice')}</span>
-                <div className="font-headline-md text-headline-md text-primary">{mandi.price}</div>
+                <div className="font-headline-md text-headline-md text-primary">
+                  {mandi.priceNum} / {t(language, 'unit.quintal')}
+                </div>
               </div>
               <div className="text-right">
                 <span className="text-body-sm text-on-surface-variant">

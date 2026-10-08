@@ -283,6 +283,10 @@ const STRINGS = {
     'mandis.volume.medium': 'Medium',
     'mandis.volume.veryHigh': 'Very High',
     'mandis.volume.moderate': 'Moderate',
+    'mandis.puneName': 'Pune APMC (Gultekdi)',
+    'mandis.ahmednagarName': 'Ahmednagar Mandi',
+    'mandis.nashikName': 'Nashik Market Yard',
+    'mandis.baramatiName': 'Baramati APMC',
 
     /* Alerts additions */
     'alerts.surge.title': 'Tomato Price Surge',
@@ -292,6 +296,29 @@ const STRINGS = {
     /* Recommendation additions */
     'rec.simulator.riskHigh': 'High (+14%)',
     'rec.simulator.riskVeryHigh': 'Very High (+{percent}%)',
+    'rec.vsAvg': '+14% vs avg',
+    'rec.puneMandi': 'Pune Mandi',
+    'rec.ahmednagarMandi': 'Ahmednagar',
+
+    /* Extra Home & Unit additions */
+    'home.hero.splitRatio': 'Pune 60% / Ahmednagar 40%',
+    'home.hero.punePrice': 'Pune (₹2,450/qt)',
+    'home.hero.ahmednagarPrice': 'Ahmednagar (₹2,380/qt)',
+    'home.demoBadge': 'DEMO',
+    'home.mandiPrices.nashikName': 'Nashik APMC',
+    'home.mandiPrices.puneName': 'Pune Market Yard',
+    'home.mandiPrices.ahmednagarName': 'Ahmednagar Mandi',
+    'unit.quintal': 'quintal',
+    'unit.kg': 'kg',
+    'auth.account': 'Account',
+    'auth.mobileNumber': 'Mobile Number',
+    'header.status.live': 'API LIVE',
+    'header.status.checking': 'Checking...',
+    'header.status.offline': 'Offline',
+    'auth.status.errorTitle': 'Could not load your profile',
+    'auth.status.tryAgain': 'Try again',
+    'auth.status.logout': 'Log out',
+    'auth.status.loading': 'Loading...',
   },
 
   /* ─────────────────────────────────────────────
@@ -569,6 +596,10 @@ const STRINGS = {
     'mandis.volume.medium': 'मध्यम',
     'mandis.volume.veryHigh': 'अति उच्च',
     'mandis.volume.moderate': 'संतुलित',
+    'mandis.puneName': 'पुणे एपीएमसी (गुलटेकड़ी)',
+    'mandis.ahmednagarName': 'अहमदनगर मंडी',
+    'mandis.nashikName': 'नासिक मार्केट यार्ड',
+    'mandis.baramatiName': 'बारामती एपीएमसी',
 
     /* Alerts additions */
     'alerts.surge.title': 'टमाटर के भाव में उछाल',
@@ -578,6 +609,29 @@ const STRINGS = {
     /* Recommendation additions */
     'rec.simulator.riskHigh': 'उच्च (+14%)',
     'rec.simulator.riskVeryHigh': 'अति उच्च (+{percent}%)',
+    'rec.vsAvg': '+14% औसत से अधिक',
+    'rec.puneMandi': 'पुणे मंडी',
+    'rec.ahmednagarMandi': 'अहमदनगर',
+
+    /* Extra Home & Unit additions */
+    'home.hero.splitRatio': 'पुणे 60% / अहमदनगर 40%',
+    'home.hero.punePrice': 'पुणे (₹2,450/क्विंटल)',
+    'home.hero.ahmednagarPrice': 'अहमदनगर (₹2,380/क्विंटल)',
+    'home.demoBadge': 'डेमो',
+    'home.mandiPrices.nashikName': 'नासिक एपीएमसी',
+    'home.mandiPrices.puneName': 'पुणे मार्केट यार्ड',
+    'home.mandiPrices.ahmednagarName': 'अहमदनगर मंडी',
+    'unit.quintal': 'क्विंटल',
+    'unit.kg': 'किलो',
+    'auth.account': 'खाता',
+    'auth.mobileNumber': 'मोबाइल नंबर',
+    'header.status.live': 'API लाइव',
+    'header.status.checking': 'जाँच हो रही है...',
+    'header.status.offline': 'ऑफलाइन',
+    'auth.status.errorTitle': 'आपकी प्रोफाइल लोड नहीं हो सकी',
+    'auth.status.tryAgain': 'पुनः प्रयास करें',
+    'auth.status.logout': 'लॉग आउट करें',
+    'auth.status.loading': 'लोड हो रहा है...',
   },
 
   /* ─────────────────────────────────────────────
@@ -855,6 +909,10 @@ const STRINGS = {
     'mandis.volume.medium': 'मध्यम',
     'mandis.volume.veryHigh': 'खूप जास्त',
     'mandis.volume.moderate': 'संतुलित',
+    'mandis.puneName': 'पुणे एपीएमसी (गुलटेकडी)',
+    'mandis.ahmednagarName': 'अहमदनगर बाजार',
+    'mandis.nashikName': 'नाशिक मार्केट यार्ड',
+    'mandis.baramatiName': 'बारामती एपीएमसी',
 
     /* Alerts additions */
     'alerts.surge.title': 'टोमॅटोच्या भावात वाढ',
@@ -864,6 +922,29 @@ const STRINGS = {
     /* Recommendation additions */
     'rec.simulator.riskHigh': 'जास्त (+14%)',
     'rec.simulator.riskVeryHigh': 'खूप जास्त (+{percent}%)',
+    'rec.vsAvg': '+१४% सरासरीपेक्षा जास्त',
+    'rec.puneMandi': 'पुणे बाजार',
+    'rec.ahmednagarMandi': 'अहमदनगर',
+
+    /* Extra Home & Unit additions */
+    'home.hero.splitRatio': 'पुणे ६०% / अहमदनगर ४०%',
+    'home.hero.punePrice': 'पुणे (₹२,४५०/क्विंटल)',
+    'home.hero.ahmednagarPrice': 'अहमदनगर (₹२,३८०/क्विंटल)',
+    'home.demoBadge': 'डेमो',
+    'home.mandiPrices.nashikName': 'नाशिक एपीएमसी',
+    'home.mandiPrices.puneName': 'पुणे मार्केट यार्ड',
+    'home.mandiPrices.ahmednagarName': 'अहमदनगर बाजार',
+    'unit.quintal': 'क्विंटल',
+    'unit.kg': 'किलो',
+    'auth.account': 'खाते',
+    'auth.mobileNumber': 'मोबाईल नंबर',
+    'header.status.live': 'API लाइव्ह',
+    'header.status.checking': 'तपासत आहे...',
+    'header.status.offline': 'ऑफलाइन',
+    'auth.status.errorTitle': 'तुमची प्रोफाइल लोड होऊ शकली नाही',
+    'auth.status.tryAgain': 'पुन्हा प्रयत्न करा',
+    'auth.status.logout': 'लॉग आउट करा',
+    'auth.status.loading': 'लोड होत आहे...',
   },
 };
 

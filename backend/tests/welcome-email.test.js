@@ -101,8 +101,9 @@ describe('idempotent delivery', () => {
 
     const provider = mockProvider();
     const healthy = createWelcomeEmailService({ provider, logger: silent });
-    await healthy.retryPending();
-    await healthy.retryPending();
+    // Scoped to this test's row: the suite runs against the dev database and must never touch real farmers.
+    await healthy.retryPending({ uids: [uid] });
+    await healthy.retryPending({ uids: [uid] });
     row = await statusOf(uid);
     assert.equal(row.welcome_email_status, 'sent');
     assert.equal(provider.sent.filter((m) => m.to === `${uid}@example.in`).length, 1);
@@ -118,7 +119,7 @@ describe('idempotent delivery', () => {
     assert.equal(row.welcome_email_attempts, 0, 'not counted as a delivery attempt');
 
     const provider = mockProvider();
-    await createWelcomeEmailService({ provider, logger: silent }).retryPending();
+    await createWelcomeEmailService({ provider, logger: silent }).retryPending({ uids: [uid] });
     row = await statusOf(uid);
     assert.equal(row.welcome_email_status, 'sent');
   });
@@ -133,6 +134,16 @@ describe('idempotent delivery', () => {
       assert.equal(await svc.sendWelcomeEmailOnce(uid), 'skipped');
     }
     assert.equal(provider.sent.length, 0);
+  });
+
+  test('scoped retry never touches other farmers', async () => {
+    const mine = await insertFarmer({ status: 'not_configured' });
+    const other = await insertFarmer({ status: 'not_configured' });
+    const provider = mockProvider();
+    await createWelcomeEmailService({ provider, logger: silent }).retryPending({ uids: [mine] });
+    assert.equal((await statusOf(mine)).welcome_email_status, 'sent');
+    assert.equal((await statusOf(other)).welcome_email_status, 'not_configured', 'unrelated row untouched');
+    assert.deepEqual(provider.sent.map((m) => m.to), [`${mine}@example.in`]);
   });
 
   test('gives up after the retry budget', async () => {

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { formatQuantity } from '../constants/profile';
+import { formatQuantity, translateCrop, translateLocation } from '../constants/profile';
 import { t } from '../i18n/strings';
 
 export default function HomePage() {
@@ -45,14 +45,14 @@ export default function HomePage() {
           {farmer && (
             <p className="font-body-sm text-xs text-secondary font-medium mt-0.5 flex items-center gap-1">
               <span className="material-symbols-outlined text-[14px]">eco</span>
-              {farmer.primaryCrop} · {formatQuantity(farmer.cropQuantity, farmer.quantityUnit)}
+              {translateCrop(farmer.primaryCrop, language)} · {formatQuantity(farmer.cropQuantity, farmer.quantityUnit, language)}
             </p>
           )}
         </div>
         <div className="bg-surface-container-high px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm shrink-0 max-w-[45%]">
           <span className="w-2 h-2 rounded-full bg-secondary shrink-0"></span>
           <span className="font-label-md text-xs text-on-surface font-medium truncate">
-            {farmer ? `${farmer.district}, ${farmer.state}` : t(language, 'home.regionFallback')}
+            {farmer ? translateLocation(`${farmer.district}, ${farmer.state}`, language) : t(language, 'home.regionFallback')}
           </span>
         </div>
       </div>
@@ -86,15 +86,15 @@ export default function HomePage() {
         <div className="mt-4 pt-3 border-t border-primary-fixed/10">
           <div className="flex justify-between text-xs font-body-sm text-primary-fixed-dim mb-1.5">
             <span>{t(language, 'home.hero.suggestedAllocation')}</span>
-            <span className="font-medium text-on-primary">Pune 60% / Ahmednagar 40%</span>
+            <span className="font-medium text-on-primary">{t(language, 'home.hero.splitRatio')}</span>
           </div>
           <div className="h-2.5 w-full bg-primary-container rounded-full overflow-hidden flex shadow-inner">
             <div className="bg-secondary-fixed h-full transition-all duration-500" style={{ width: '60%' }}></div>
             <div className="bg-tertiary-fixed h-full transition-all duration-500" style={{ width: '40%' }}></div>
           </div>
           <div className="flex justify-between text-[11px] text-primary-fixed-dim mt-1">
-            <span>Pune (₹2,450/qt)</span>
-            <span>Ahmednagar (₹2,380/qt)</span>
+            <span>{t(language, 'home.hero.punePrice')}</span>
+            <span>{t(language, 'home.hero.ahmednagarPrice')}</span>
           </div>
         </div>
       </Link>
@@ -191,21 +191,25 @@ export default function HomePage() {
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-headline-md text-on-surface text-base">
             {t(language, 'home.mandiPrices.title')}{' '}
-            <span className="align-middle text-[10px] font-body-sm font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">DEMO</span>
+            <span className="align-middle text-[10px] font-body-sm font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+              {t(language, 'home.demoBadge')}
+            </span>
           </h3>
           <Link to="/mandis" className="font-label-md text-xs text-secondary font-medium">
             {t(language, 'home.mandiPrices.viewAll')}
           </Link>
         </div>
         <div className="space-y-3">
-          {/* Nashik — location names intentionally not translated */}
+          {/* Nashik */}
           <div className="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface font-bold text-xs">
                 NSK
               </div>
               <div>
-                <p className="font-label-lg text-sm font-bold text-on-surface">Nashik APMC</p>
+                <p className="font-label-lg text-sm font-bold text-on-surface">
+                  {t(language, 'home.mandiPrices.nashikName')}
+                </p>
                 <p className="font-body-sm text-xs text-on-surface-variant">
                   {t(language, 'home.mandiPrices.modal')}: ₹2,350 / {t(language, 'home.mandiPrices.quintal')}
                 </p>
@@ -225,7 +229,9 @@ export default function HomePage() {
                 PUN
               </div>
               <div>
-                <p className="font-label-lg text-sm font-bold text-on-surface">Pune Market Yard</p>
+                <p className="font-label-lg text-sm font-bold text-on-surface">
+                  {t(language, 'home.mandiPrices.puneName')}
+                </p>
                 <p className="font-body-sm text-xs text-on-surface-variant">
                   {t(language, 'home.mandiPrices.modal')}: ₹2,450 / {t(language, 'home.mandiPrices.quintal')}
                 </p>
@@ -235,7 +241,7 @@ export default function HomePage() {
               <span className="font-label-lg text-sm font-bold text-secondary flex items-center justify-end gap-0.5">
                 <span className="material-symbols-outlined text-[16px]">trending_up</span> ₹2,450
               </span>
-              <span className="text-[10px] text-secondary font-medium">+2.4%</span>
+              <span className="text-[10px] text-secondary font-medium">+2.4% {t(language, 'home.mandiPrices.today')}</span>
             </div>
           </div>
           {/* Ahmednagar */}
@@ -245,7 +251,9 @@ export default function HomePage() {
                 AHM
               </div>
               <div>
-                <p className="font-label-lg text-sm font-bold text-on-surface">Ahmednagar Mandi</p>
+                <p className="font-label-lg text-sm font-bold text-on-surface">
+                  {t(language, 'home.mandiPrices.ahmednagarName')}
+                </p>
                 <p className="font-body-sm text-xs text-on-surface-variant">
                   {t(language, 'home.mandiPrices.modal')}: ₹2,380 / {t(language, 'home.mandiPrices.quintal')}
                 </p>
@@ -255,7 +263,7 @@ export default function HomePage() {
               <span className="font-label-lg text-sm font-bold text-secondary flex items-center justify-end gap-0.5">
                 <span className="material-symbols-outlined text-[16px]">trending_up</span> ₹2,380
               </span>
-              <span className="text-[10px] text-secondary font-medium">+0.8%</span>
+              <span className="text-[10px] text-secondary font-medium">+0.8% {t(language, 'home.mandiPrices.today')}</span>
             </div>
           </div>
         </div>

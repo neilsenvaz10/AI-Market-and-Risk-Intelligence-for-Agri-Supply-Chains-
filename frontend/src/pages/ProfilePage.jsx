@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth, useLogout } from '../context/AuthContext';
 import FarmerProfileForm from '../components/FarmerProfileForm';
-import { formatPhone, formatQuantity } from '../constants/profile';
+import { formatPhone, formatQuantity, translateCrop, translateLocation } from '../constants/profile';
 import { languageLabel } from '../i18n/languages';
 import { getAuthErrorMessage } from '../services/authService';
 import { t } from '../i18n/strings';
@@ -101,7 +101,7 @@ export default function ProfilePage() {
         </div>
         <div className="min-w-0">
           <h2 className="font-headline-md text-headline-md text-on-primary break-words">{farmer.fullName}</h2>
-          <p className="text-body-sm text-primary-fixed-dim">{location}</p>
+          <p className="text-body-sm text-primary-fixed-dim">{translateLocation(location, language)}</p>
           <span className="inline-block mt-1 text-xs bg-secondary px-2 py-0.5 rounded-full font-bold">
             {t(language, 'profile.verifiedFarmer')}
           </span>
@@ -141,7 +141,7 @@ export default function ProfilePage() {
             </h3>
             <div className="flex gap-2 flex-wrap">
               <span className="px-3 py-1 bg-secondary-container text-on-secondary-container rounded-lg text-body-sm font-bold">
-                {farmer.primaryCrop} ({formatQuantity(farmer.cropQuantity, farmer.quantityUnit)})
+                {translateCrop(farmer.primaryCrop, language)} ({formatQuantity(farmer.cropQuantity, farmer.quantityUnit, language)})
               </span>
             </div>
           </div>

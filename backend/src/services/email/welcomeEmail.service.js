@@ -88,8 +88,12 @@ export function createWelcomeEmailService({ provider, dashboardUrl, logger = con
     }
   }
 
-  /** Retries undelivered welcome emails (startup + periodic). */
-  async function retryPending(limit = 50) {
+  /**
+   * Retries undelivered welcome emails (startup + periodic).
+   * `uids` restricts the pass to specific farmers (e.g. a manual retry, or tests that
+   * must never touch other rows); omit it to process every eligible farmer.
+   */
+  async function retryPending({ limit = 50, uids } = {}) {
     if (!provider.configured) return { attempted: 0 };
     const { rows } = await pool.query(
       `SELECT firebase_uid FROM farmers
@@ -97,9 +101,10 @@ export function createWelcomeEmailService({ provider, dashboardUrl, logger = con
           AND registration_completed_at IS NOT NULL
           AND email_verified = TRUE
           AND welcome_email_attempts < $1
+          AND ($3::text[] IS NULL OR firebase_uid = ANY($3::text[]))
         ORDER BY registration_completed_at
         LIMIT $2`,
-      [MAX_ATTEMPTS, limit],
+      [MAX_ATTEMPTS, limit, uids ?? null],
     );
     const results = [];
     for (const { firebase_uid: uid } of rows) {

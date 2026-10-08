@@ -24,7 +24,7 @@ export default function RecommendationResultPage() {
             {t(language, 'rec.optimizedReturn')}
           </span>
           <span className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-body-sm font-bold flex items-center gap-1">
-            <span className="material-symbols-outlined text-[14px]">trending_up</span> +14% vs avg
+            <span className="material-symbols-outlined text-[14px]">trending_up</span> {t(language, 'rec.vsAvg')}
           </span>
         </div>
         <div className="text-headline-xl font-headline-xl text-primary-fixed mb-4">₹19,800</div>
@@ -52,7 +52,7 @@ export default function RecommendationResultPage() {
             {t(language, 'rec.mandiSplit')}
           </h3>
           <span className="text-body-sm text-on-surface-variant">
-            {t(language, 'rec.total')}: 1,000 kg
+            {t(language, 'rec.total')}: 1,000 {t(language, 'unit.kg')}
           </span>
         </div>
         {/* Visual Bar */}
@@ -64,22 +64,22 @@ export default function RecommendationResultPage() {
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-surface-container-low p-4 rounded-xl flex flex-col gap-1">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-on-surface text-body-lg">Pune Mandi</span>
+              <span className="font-bold text-on-surface text-body-lg">{t(language, 'rec.puneMandi')}</span>
               <span className="text-xs font-bold text-secondary bg-secondary-container/50 px-2 py-0.5 rounded-full">60%</span>
             </div>
-            <div className="text-headline-md font-headline-md text-secondary">600 kg</div>
+            <div className="text-headline-md font-headline-md text-secondary">600 {t(language, 'unit.kg')}</div>
             <span className="text-body-sm text-on-surface-variant">
-              {t(language, 'rec.expected')}: ₹2,050 / qtl
+              {t(language, 'rec.expected')}: ₹2,050 / {t(language, 'unit.quintal')}
             </span>
           </div>
           <div className="bg-surface-container-low p-4 rounded-xl flex flex-col gap-1">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-on-surface text-body-lg">Ahmednagar</span>
+              <span className="font-bold text-on-surface text-body-lg">{t(language, 'rec.ahmednagarMandi')}</span>
               <span className="text-xs font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">40%</span>
             </div>
-            <div className="text-headline-md font-headline-md text-amber-700">400 kg</div>
+            <div className="text-headline-md font-headline-md text-amber-700">400 {t(language, 'unit.kg')}</div>
             <span className="text-body-sm text-on-surface-variant">
-              {t(language, 'rec.expected')}: ₹1,920 / qtl
+              {t(language, 'rec.expected')}: ₹1,920 / {t(language, 'unit.quintal')}
             </span>
           </div>
         </div>
