@@ -15,6 +15,8 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
       - ./database/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+      # Applied automatically only on a fresh volume; existing DBs use `npm run migrate`
+      - ./database/migrations/002_phase2_farmers.sql:/docker-entrypoint-initdb.d/03_phase2_farmers.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-fasalytics}"]
       interval: 5s

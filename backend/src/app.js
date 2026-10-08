@@ -2,37 +2,65 @@ import express from 'express';
 import cors from 'cors';
 import { config } from './config/index.js';
 import healthRoutes from './routes/health.routes.js';
+import createAuthRoutes from './routes/auth.routes.js';
+import createFarmerRoutes from './routes/farmer.routes.js';
+import { requireAuth as defaultRequireAuth } from './middleware/auth.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import { createEmailProvider } from './services/email/emailProvider.js';
+import { createWelcomeEmailService } from './services/email/welcomeEmail.service.js';
 
-const app = express();
-
-// Middleware
-app.use(cors({
-  origin: [config.frontendUrl, 'http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'],
-  credentials: true,
-}));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Root route for convenient quick check
-app.get('/', (req, res) => {
-  res.json({
-    name: 'FASALYTICS API Backend',
-    version: '1.0.0',
-    phase: 'Phase 1 - Project Setup & Architecture',
-    endpoints: {
-      health: '/api/health',
-      databaseHealth: '/api/health/database',
-      mlHealth: '/api/health/ml',
-    },
+export function createDefaultWelcomeEmailService() {
+  return createWelcomeEmailService({
+    provider: createEmailProvider(config.email),
+    dashboardUrl: config.frontendUrl,
   });
-});
+}
 
-// Modular Routes
-app.use('/api/health', healthRoutes);
+/**
+ * Builds the Express app. `requireAuth` and `welcomeEmail` are injectable so
+ * tests can supply a fake token verifier / email provider; production always
+ * uses Firebase Admin verification and the configured email provider.
+ */
+export function createApp({ requireAuth = defaultRequireAuth, welcomeEmail = createDefaultWelcomeEmailService() } = {}) {
+  const app = express();
+  app.locals.welcomeEmail = welcomeEmail;
 
-// Error handling
-app.use(notFoundHandler);
-app.use(errorHandler);
+  // Middleware
+  app.use(cors({
+    origin: [config.frontendUrl, 'http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'],
+    credentials: true,
+  }));
+  app.use(express.json({ limit: '20kb' }));
+  app.use(express.urlencoded({ extended: true }));
+
+  // Root route for convenient quick check
+  app.get('/', (req, res) => {
+    res.json({
+      name: 'FASALYTICS API Backend',
+      version: '1.0.0',
+      phase: 'Phase 2 - Farmer Authentication & Profiles',
+      endpoints: {
+        health: '/api/health',
+        databaseHealth: '/api/health/database',
+        mlHealth: '/api/health/ml',
+        session: '/api/auth/session',
+        farmerProfile: '/api/farmers/me',
+      },
+    });
+  });
+
+  // Modular Routes
+  app.use('/api/health', healthRoutes);
+  app.use('/api/auth', createAuthRoutes(requireAuth));
+  app.use('/api/farmers', createFarmerRoutes(requireAuth));
+
+  // Error handling
+  app.use(notFoundHandler);
+  app.use(errorHandler);
+
+  return app;
+}
+
+const app = createApp();
 
 export default app;

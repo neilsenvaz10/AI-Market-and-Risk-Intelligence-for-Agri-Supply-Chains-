@@ -1,7 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { formatQuantity } from '../constants/profile';
+import { t } from '../i18n/strings';
 
 export default function HomePage() {
+  const { farmer, language } = useAuth();
+  const firstName = farmer?.fullName.split(' ')[0] || '';
+
   return (
     <div className="flex flex-col w-full pb-8">
       {/* Install Banner */}
@@ -26,13 +32,30 @@ export default function HomePage() {
       {/* Greeting & Header info */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="font-headline-lg text-on-surface">नमस्कार, रमेश</h1>
+          <h1 className="font-headline-lg text-on-surface">{t(language, 'greeting', { name: firstName })}</h1>
           <p className="font-body-sm text-on-surface-variant">Your intelligent agricultural trading companion</p>
+          {farmer && (
+            <p className="font-body-sm text-xs text-secondary font-medium mt-0.5 flex items-center gap-1">
+              <span className="material-symbols-outlined text-[14px]">eco</span>
+              {farmer.primaryCrop} · {formatQuantity(farmer.cropQuantity, farmer.quantityUnit)}
+            </p>
+          )}
         </div>
-        <div className="bg-surface-container-high px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm">
-          <span className="w-2 h-2 rounded-full bg-secondary"></span>
-          <span className="font-label-md text-xs text-on-surface font-medium">Maharashtra Mandis</span>
+        <div className="bg-surface-container-high px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm shrink-0 max-w-[45%]">
+          <span className="w-2 h-2 rounded-full bg-secondary shrink-0"></span>
+          <span className="font-label-md text-xs text-on-surface font-medium truncate">
+            {farmer ? `${farmer.district}, ${farmer.state}` : 'Maharashtra Mandis'}
+          </span>
         </div>
+      </div>
+
+      {/* Phase 2: market intelligence below is placeholder content until live data phases */}
+      <div className="bg-surface-container-high text-on-surface-variant px-3 py-2 rounded-xl mb-3 flex items-center gap-2">
+        <span className="material-symbols-outlined text-[16px]">info</span>
+        <p className="font-body-sm text-[11px]">
+          <span className="font-bold">Demo content:</span> prices, forecasts, risk and recommendations below are
+          sample data. Live mandi intelligence arrives in a later phase.
+        </p>
       </div>
 
       {/* Dark Green Hero Card (Links to detailed recommendation breakdown) */}
@@ -148,7 +171,10 @@ export default function HomePage() {
       {/* Today's Mandi Prices Section */}
       <div className="bg-surface-container-lowest rounded-xl p-4 shadow-sm mb-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-headline-md text-on-surface text-base">Today's Mandi Prices (Onion)</h3>
+          <h3 className="font-headline-md text-on-surface text-base">
+            Today's Mandi Prices (Onion){' '}
+            <span className="align-middle text-[10px] font-body-sm font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">DEMO</span>
+          </h3>
           <Link to="/mandis" className="font-label-md text-xs text-secondary font-medium">
             View all
           </Link>

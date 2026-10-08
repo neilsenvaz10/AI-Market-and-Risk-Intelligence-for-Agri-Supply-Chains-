@@ -1,16 +1,26 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth, hasStoredLanguage } from '../context/AuthContext';
 
 export default function SplashOnboardingPage() {
-  const [selectedLang, setSelectedLang] = useState('mr');
+  const { language, setLanguage, isAuthenticated } = useAuth();
+  // Stitch design pre-selects Marathi for first-time visitors; afterwards show the saved choice.
+  const [selectedLang, setSelectedLang] = useState(() => (hasStoredLanguage() ? language : 'mr'));
   const [loading, setLoading] = useState(false);
+  const [saveError, setSaveError] = useState(null);
   const navigate = useNavigate();
 
-  const handleGetStarted = () => {
+  const handleGetStarted = async () => {
     setLoading(true);
-    setTimeout(() => {
-      navigate('/');
-    }, 600);
+    setSaveError(null);
+    try {
+      // Saved locally, and to the farmer profile in PostgreSQL when logged in
+      await setLanguage(selectedLang);
+      navigate(isAuthenticated ? '/' : '/login');
+    } catch (err) {
+      setSaveError(err.message || 'Could not save your language. Please try again.');
+      setLoading(false);
+    }
   };
 
   return (
@@ -171,6 +181,9 @@ export default function SplashOnboardingPage() {
             </>
           )}
         </button>
+        {saveError && (
+          <p className="text-body-sm text-center text-error" role="alert">{saveError}</p>
+        )}
         <p className="text-body-sm text-center text-on-surface-variant mt-2">
           By continuing, you agree to receive Mandi price alerts via SMS.
         </p>

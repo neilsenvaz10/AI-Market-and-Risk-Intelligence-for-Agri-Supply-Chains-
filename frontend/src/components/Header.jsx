@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { checkBackendHealth } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { LANGUAGES } from '../i18n/languages';
+import AccountMenu from './AccountMenu';
 
 export default function Header() {
   const [backendStatus, setBackendStatus] = useState('checking'); // 'connected', 'offline', 'checking'
+  const { language, setLanguage } = useAuth();
 
   useEffect(() => {
     let isMounted = true;
@@ -52,16 +56,23 @@ export default function Header() {
         </div>
         <div className="flex items-center gap-space-md">
           <div className="flex bg-primary-container rounded-full p-1 text-xs">
-            <button className="px-2 py-1 rounded-full bg-surface text-primary font-bold">EN</button>
-            <button className="px-2 py-1 rounded-full text-on-primary-container">हिं</button>
-            <button className="px-2 py-1 rounded-full text-on-primary-container">मराठी</button>
+            {LANGUAGES.map((lang) => (
+              <button
+                key={lang.code}
+                type="button"
+                lang={lang.code}
+                aria-pressed={language === lang.code}
+                title={lang.label}
+                onClick={() => setLanguage(lang.code).catch(() => {})}
+                className={`px-2 py-1 rounded-full ${
+                  language === lang.code ? 'bg-surface text-primary font-bold' : 'text-on-primary-container'
+                }`}
+              >
+                {lang.pill}
+              </button>
+            ))}
           </div>
-          <Link
-            to="/profile"
-            className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-on-secondary hover:opacity-90"
-          >
-            <span className="material-symbols-outlined text-on-secondary text-[18px]">person</span>
-          </Link>
+          <AccountMenu />
         </div>
       </div>
     </header>

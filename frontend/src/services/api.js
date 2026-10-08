@@ -28,6 +28,70 @@ async function fetchWithFallback(endpoint, options = {}) {
   }
 }
 
+/**
+ * Error raised for failed API calls. `code` mirrors the backend's JSON error
+ * code (e.g. TOKEN_EXPIRED, PROFILE_NOT_FOUND) or NETWORK_ERROR.
+ */
+export class ApiError extends Error {
+  constructor(status, code, message, details) {
+    super(message);
+    this.status = status;
+    this.code = code;
+    this.details = details;
+  }
+}
+
+const isJsonResponse = (res) => (res.headers.get('content-type') || '').includes('application/json');
+
+async function sendRequest(baseUrl, endpoint, options) {
+  const res = await fetch(`${baseUrl}${endpoint}`, options);
+  // A non-JSON reply means another process owns the port (e.g. Windows on :5000).
+  if (!isJsonResponse(res)) throw new TypeError(`Unexpected response from ${baseUrl}`);
+  return res;
+}
+
+/**
+ * JSON request to the Express backend. Never treats a failed request as success:
+ * non-2xx responses throw ApiError with the backend's code and message.
+ *
+ * @param {string} endpoint e.g. '/api/farmers/me'
+ * @param {{ method?: string, body?: object, token?: string }} options
+ */
+export async function apiRequest(endpoint, { method = 'GET', body, token } = {}) {
+  const options = {
+    method,
+    headers: {
+      Accept: 'application/json',
+      ...(body !== undefined && { 'Content-Type': 'application/json' }),
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+    ...(body !== undefined && { body: JSON.stringify(body) }),
+  };
+
+  let res;
+  try {
+    res = await sendRequest(resolvedApiUrl, endpoint, options);
+  } catch {
+    if (!resolvedApiUrl.includes(':5000')) {
+      throw new ApiError(0, 'NETWORK_ERROR', 'Cannot reach the FASALYTICS server. Check your internet connection.');
+    }
+    // Same Windows :5000 -> :5001 fallback used by the health checks
+    const fallbackUrl = resolvedApiUrl.replace(':5000', ':5001');
+    try {
+      res = await sendRequest(fallbackUrl, endpoint, options);
+      resolvedApiUrl = fallbackUrl;
+    } catch {
+      throw new ApiError(0, 'NETWORK_ERROR', 'Cannot reach the FASALYTICS server. Check your internet connection.');
+    }
+  }
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new ApiError(res.status, data.code || `HTTP_${res.status}`, data.message || `Request failed (HTTP ${res.status})`, data.details);
+  }
+  return data;
+}
+
 export async function checkBackendHealth() {
   try {
     return await fetchWithFallback('/api/health');
