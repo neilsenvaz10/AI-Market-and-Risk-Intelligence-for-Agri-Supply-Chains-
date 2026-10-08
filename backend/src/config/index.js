@@ -34,7 +34,14 @@ export const config = {
     from: process.env.EMAIL_FROM || undefined, // e.g. "FASALYTICS <no-reply@yourdomain.in>"
     replyTo: process.env.EMAIL_REPLY_TO || undefined,
   },
+  mandi: {
+    provider: process.env.MANDI_DATA_PROVIDER || 'MOCK', // 'MOCK' | 'AGMARKNET' | 'CEDA'
+    dataGovApiKey: process.env.DATA_GOV_IN_API_KEY || '',
+    dataGovApiUrl: process.env.DATA_GOV_IN_API_URL || 'https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070',
+    cedaApiKey: process.env.CEDA_API_KEY || '',
+    cedaApiUrl: process.env.CEDA_API_URL || 'https://api.ceda.ashoka.edu.in/v1',
+    syncIntervalMinutes: parseInt(process.env.MANDI_SYNC_INTERVAL_MINUTES || '60', 10),
+  },
 };
 
-// Configuration reloaded with updated DB_PORT
 export default config;

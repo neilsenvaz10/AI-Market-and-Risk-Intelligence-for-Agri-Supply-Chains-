@@ -319,6 +319,19 @@ const STRINGS = {
     'auth.status.tryAgain': 'Try again',
     'auth.status.logout': 'Log out',
     'auth.status.loading': 'Loading...',
+
+    /* Mandi price feed (Phase 3) */
+    'home.demoNoticePartial': 'Demo content: the recommendation, expected return, alert and risk/confidence tiles below are sample data. The mandi price card shows reported prices with their source and date.',
+    'mandiFeed.loading': 'Loading mandi prices...',
+    'mandiFeed.error': 'Could not load mandi prices right now.',
+    'mandiFeed.retry': 'Retry',
+    'mandiFeed.empty': 'No onion prices have been reported yet.',
+    'mandiFeed.reported': 'Reported {date}',
+    'mandiFeed.source': 'Source: {source}',
+    'mandiFeed.sampleBadge': 'Sample data',
+    'mandiFeed.sampleSource': 'Sample feed (not real market prices)',
+    'mandiFeed.vsPrevious': 'vs previous',
+    'mandiFeed.notReported': 'Not reported',
   },
 
   /* ─────────────────────────────────────────────
@@ -632,6 +645,19 @@ const STRINGS = {
     'auth.status.tryAgain': 'पुनः प्रयास करें',
     'auth.status.logout': 'लॉग आउट करें',
     'auth.status.loading': 'लोड हो रहा है...',
+
+    /* Mandi price feed (Phase 3) */
+    'home.demoNoticePartial': 'डेमो सामग्री: नीचे दी गई सिफारिश, अपेक्षित लाभ, अलर्ट और जोखिम/विश्वास टाइल नमूना डेटा हैं। मंडी भाव कार्ड में दर्ज भाव उनके स्रोत और तारीख के साथ दिखाए गए हैं।',
+    'mandiFeed.loading': 'मंडी भाव लोड हो रहे हैं...',
+    'mandiFeed.error': 'अभी मंडी भाव लोड नहीं हो सके।',
+    'mandiFeed.retry': 'फिर से कोशिश करें',
+    'mandiFeed.empty': 'अभी तक प्याज का कोई भाव दर्ज नहीं हुआ है।',
+    'mandiFeed.reported': 'दर्ज तारीख: {date}',
+    'mandiFeed.source': 'स्रोत: {source}',
+    'mandiFeed.sampleBadge': 'नमूना डेटा',
+    'mandiFeed.sampleSource': 'नमूना फ़ीड (असली बाज़ार भाव नहीं)',
+    'mandiFeed.vsPrevious': 'पिछले भाव से',
+    'mandiFeed.notReported': 'दर्ज नहीं',
   },
 
   /* ─────────────────────────────────────────────
@@ -945,6 +971,19 @@ const STRINGS = {
     'auth.status.tryAgain': 'पुन्हा प्रयत्न करा',
     'auth.status.logout': 'लॉग आउट करा',
     'auth.status.loading': 'लोड होत आहे...',
+
+    /* Mandi price feed (Phase 3) */
+    'home.demoNoticePartial': 'डेमो माहिती: खालील शिफारस, अपेक्षित परतावा, सूचना आणि धोका/विश्वास टाइल्स नमुना डेटा आहेत. बाजारभाव कार्डमध्ये नोंदवलेले भाव त्यांच्या स्रोत आणि दिनांकासह दाखवले आहेत.',
+    'mandiFeed.loading': 'बाजारभाव लोड होत आहेत...',
+    'mandiFeed.error': 'सध्या बाजारभाव लोड करता आले नाहीत.',
+    'mandiFeed.retry': 'पुन्हा प्रयत्न करा',
+    'mandiFeed.empty': 'अद्याप कांद्याचा कोणताही भाव नोंदवलेला नाही.',
+    'mandiFeed.reported': 'नोंद दिनांक: {date}',
+    'mandiFeed.source': 'स्रोत: {source}',
+    'mandiFeed.sampleBadge': 'नमुना डेटा',
+    'mandiFeed.sampleSource': 'नमुना फीड (खरे बाजारभाव नाहीत)',
+    'mandiFeed.vsPrevious': 'मागील भावापेक्षा',
+    'mandiFeed.notReported': 'नोंद नाही',
   },
 };
 

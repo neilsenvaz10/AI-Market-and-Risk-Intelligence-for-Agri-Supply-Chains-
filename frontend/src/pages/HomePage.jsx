@@ -1,12 +1,79 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { formatQuantity, translateCrop, translateLocation } from '../constants/profile';
 import { t } from '../i18n/strings';
+import { getLatestMandiPrices } from '../services/api';
+
+// Primary mandis for the dashboard card, in display order
+const HOME_MANDIS = {
+  MH_NSK_MAIN: { badge: 'NSK', nameKey: 'home.mandiPrices.nashikName' },
+  MH_PUNE_APMC: { badge: 'PUN', nameKey: 'home.mandiPrices.puneName' },
+  MH_AHM_APMC: { badge: 'AHM', nameKey: 'home.mandiPrices.ahmednagarName' },
+};
+const HOME_MANDI_CODES = Object.keys(HOME_MANDIS);
+
+const SOURCE_LABELS = {
+  DATA_GOV_IN: 'AGMARKNET / data.gov.in',
+  AGMARKNET: 'AGMARKNET / data.gov.in',
+  CEDA: 'CEDA (Ashoka University)',
+};
+
+const DATE_LOCALES = { en: 'en-IN', hi: 'hi-IN', mr: 'mr-IN' };
+
+const TREND_STYLES = {
+  up: { icon: 'trending_up', tone: 'text-secondary' },
+  down: { icon: 'trending_down', tone: 'text-error' },
+  stable: { icon: 'trending_flat', tone: 'text-on-surface-variant' },
+};
+
+const homeMandiRank = (row) => {
+  const index = HOME_MANDI_CODES.indexOf(row.mandi_code);
+  return index === -1 ? HOME_MANDI_CODES.length : index;
+};
+
+const formatReportDate = (value, language) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString(DATE_LOCALES[language] || 'en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+};
 
 export default function HomePage() {
   const { farmer, language } = useAuth();
   const firstName = farmer?.fullName?.split(' ')[0] || '';
+  const [priceFeed, setPriceFeed] = useState({ status: 'loading', rows: [] }); // 'loading' | 'ready' | 'error'
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    getLatestMandiPrices({ commodity: 'ONION' })
+      .then((res) => {
+        if (isMounted) setPriceFeed({ status: 'ready', rows: Array.isArray(res?.data) ? res.data : [] });
+      })
+      .catch(() => {
+        // No fallback prices: surface the failure instead of showing stale numbers
+        if (isMounted) setPriceFeed({ status: 'error', rows: [] });
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [reloadKey]);
+
+  const retryPrices = () => {
+    setPriceFeed({ status: 'loading', rows: [] });
+    setReloadKey((key) => key + 1);
+  };
+
+  const onionPrices = [...priceFeed.rows].sort((a, b) => homeMandiRank(a) - homeMandiRank(b)).slice(0, 3);
+  const hasSampleData = onionPrices.some((row) => row.is_sample_data);
+  const priceSources = [
+    ...new Set(
+      onionPrices.map((row) =>
+        row.is_sample_data ? t(language, 'mandiFeed.sampleSource') : SOURCE_LABELS[row.source] || row.source
+      )
+    ),
+  ];
 
   return (
     <div className="flex flex-col w-full pb-8">
@@ -57,11 +124,11 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Demo notice */}
+      {/* Demo notice — everything above the mandi price card is still sample content */}
       <div className="bg-surface-container-high text-on-surface-variant px-3 py-2 rounded-xl mb-3 flex items-center gap-2">
         <span className="material-symbols-outlined text-[16px]">info</span>
         <p className="font-body-sm text-[11px]">
-          {t(language, 'home.demoNotice')}
+          {t(language, 'home.demoNoticePartial')}
         </p>
       </div>
 
@@ -186,87 +253,102 @@ export default function HomePage() {
         </Link>
       </div>
 
-      {/* Today's Mandi Prices Section */}
+      {/* Today's Mandi Prices Section — latest reported prices from the mandi data pipeline */}
       <div className="bg-surface-container-lowest rounded-xl p-4 shadow-sm mb-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-headline-md text-on-surface text-base">
-            {t(language, 'home.mandiPrices.title')}{' '}
-            <span className="align-middle text-[10px] font-body-sm font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
-              {t(language, 'home.demoBadge')}
-            </span>
+            {t(language, 'home.mandiPrices.title')}
+            {hasSampleData && (
+              <>
+                {' '}
+                <span className="align-middle text-[10px] font-body-sm font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+                  {t(language, 'home.demoBadge')}
+                </span>
+              </>
+            )}
           </h3>
           <Link to="/mandis" className="font-label-md text-xs text-secondary font-medium">
             {t(language, 'home.mandiPrices.viewAll')}
           </Link>
         </div>
-        <div className="space-y-3">
-          {/* Nashik */}
-          <div className="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface font-bold text-xs">
-                NSK
-              </div>
-              <div>
-                <p className="font-label-lg text-sm font-bold text-on-surface">
-                  {t(language, 'home.mandiPrices.nashikName')}
-                </p>
-                <p className="font-body-sm text-xs text-on-surface-variant">
-                  {t(language, 'home.mandiPrices.modal')}: ₹2,350 / {t(language, 'home.mandiPrices.quintal')}
-                </p>
-              </div>
-            </div>
-            <div className="text-right">
-              <span className="font-label-lg text-sm font-bold text-error flex items-center justify-end gap-0.5">
-                <span className="material-symbols-outlined text-[16px]">trending_down</span> ₹2,350
-              </span>
-              <span className="text-[10px] text-error font-medium">-1.2% {t(language, 'home.mandiPrices.today')}</span>
-            </div>
+
+        {priceFeed.status === 'loading' && (
+          <div className="flex items-center gap-2 p-2.5 text-on-surface-variant" role="status">
+            <span className="material-symbols-outlined animate-spin text-secondary text-[18px]">progress_activity</span>
+            <p className="font-body-sm text-xs">{t(language, 'mandiFeed.loading')}</p>
           </div>
-          {/* Pune */}
-          <div className="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container font-bold text-xs">
-                PUN
-              </div>
-              <div>
-                <p className="font-label-lg text-sm font-bold text-on-surface">
-                  {t(language, 'home.mandiPrices.puneName')}
-                </p>
-                <p className="font-body-sm text-xs text-on-surface-variant">
-                  {t(language, 'home.mandiPrices.modal')}: ₹2,450 / {t(language, 'home.mandiPrices.quintal')}
-                </p>
-              </div>
-            </div>
-            <div className="text-right">
-              <span className="font-label-lg text-sm font-bold text-secondary flex items-center justify-end gap-0.5">
-                <span className="material-symbols-outlined text-[16px]">trending_up</span> ₹2,450
-              </span>
-              <span className="text-[10px] text-secondary font-medium">+2.4% {t(language, 'home.mandiPrices.today')}</span>
-            </div>
+        )}
+
+        {priceFeed.status === 'error' && (
+          <div className="bg-error-container text-on-error-container p-3 rounded-lg flex items-center gap-3" role="alert">
+            <span className="material-symbols-outlined text-error text-[20px] shrink-0">error</span>
+            <p className="font-body-sm text-xs flex-1">{t(language, 'mandiFeed.error')}</p>
+            <button
+              type="button"
+              onClick={retryPrices}
+              className="font-label-md text-xs font-bold text-error underline shrink-0"
+            >
+              {t(language, 'mandiFeed.retry')}
+            </button>
           </div>
-          {/* Ahmednagar */}
-          <div className="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface font-bold text-xs">
-                AHM
-              </div>
-              <div>
-                <p className="font-label-lg text-sm font-bold text-on-surface">
-                  {t(language, 'home.mandiPrices.ahmednagarName')}
-                </p>
-                <p className="font-body-sm text-xs text-on-surface-variant">
-                  {t(language, 'home.mandiPrices.modal')}: ₹2,380 / {t(language, 'home.mandiPrices.quintal')}
-                </p>
-              </div>
+        )}
+
+        {priceFeed.status === 'ready' && onionPrices.length === 0 && (
+          <p className="font-body-sm text-xs text-on-surface-variant p-2.5">{t(language, 'mandiFeed.empty')}</p>
+        )}
+
+        {onionPrices.length > 0 && (
+          <>
+            <div className="space-y-3">
+              {onionPrices.map((row) => {
+                const homeMandi = HOME_MANDIS[row.mandi_code];
+                const badge = homeMandi?.badge || String(row.mandi_name || '').slice(0, 3).toUpperCase();
+                const trend = TREND_STYLES[row.trend_direction] || TREND_STYLES.stable;
+                const trendPercent = Number(row.trend_percent) || 0;
+                const price = `₹${Number(row.modal_price).toLocaleString('en-IN')}`;
+                const unit = t(language, row.unit === 'kg' ? 'unit.kg' : 'home.mandiPrices.quintal');
+
+                return (
+                  <div key={row.id} className="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
+                          badge === 'PUN'
+                            ? 'bg-secondary-container text-on-secondary-container'
+                            : 'bg-surface-container-high text-on-surface'
+                        }`}
+                      >
+                        {badge}
+                      </div>
+                      <div>
+                        <p className="font-label-lg text-sm font-bold text-on-surface">
+                          {homeMandi ? t(language, homeMandi.nameKey) : row.mandi_name}
+                        </p>
+                        <p className="font-body-sm text-xs text-on-surface-variant">
+                          {t(language, 'home.mandiPrices.modal')}: {price} / {unit}
+                        </p>
+                        <p className="font-body-sm text-[10px] text-on-surface-variant">
+                          {t(language, 'mandiFeed.reported', { date: formatReportDate(row.price_date, language) })}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className={`font-label-lg text-sm font-bold flex items-center justify-end gap-0.5 ${trend.tone}`}>
+                        <span className="material-symbols-outlined text-[16px]">{trend.icon}</span> {price}
+                      </span>
+                      <span className={`text-[10px] font-medium ${trend.tone}`}>
+                        {trendPercent > 0 ? '+' : ''}{trendPercent}% {t(language, 'mandiFeed.vsPrevious')}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <div className="text-right">
-              <span className="font-label-lg text-sm font-bold text-secondary flex items-center justify-end gap-0.5">
-                <span className="material-symbols-outlined text-[16px]">trending_up</span> ₹2,380
-              </span>
-              <span className="text-[10px] text-secondary font-medium">+0.8% {t(language, 'home.mandiPrices.today')}</span>
-            </div>
-          </div>
-        </div>
+            <p className="font-body-sm text-[10px] text-on-surface-variant mt-3">
+              {t(language, 'mandiFeed.source', { source: priceSources.join(', ') })}
+            </p>
+          </>
+        )}
       </div>
 
       {/* Floating Mic Button to Ask AI */}
