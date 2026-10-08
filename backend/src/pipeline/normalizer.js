@@ -1,219 +1,254 @@
+import crypto from 'node:crypto';
+
 /**
  * Mandi Data Normalizer
- * Standardizes commodity names, mandi names, units, and dates into consistent canonical formats.
+ *
+ * Converts a provider record into the canonical shape stored in mandi_prices.
+ * Rules (each one fixes a defect found in the Phase 3 audit):
+ *   - identities use EXACT matching on normalised names, never substrings
+ *     ("Sweet Potato" stays SWEET_POTATO, "Pune(Moshi)" stays its own market);
+ *   - missing state/district/market are never guessed; they stay null and the
+ *     validator rejects the record;
+ *   - dates must be real calendar dates in the provider's declared format;
+ *   - missing prices and arrivals stay null (never 0);
+ *   - units are converted only when the unit is known; unknown units stay null
+ *     and the record is rejected;
+ *   - original source names and identifiers are preserved alongside canonical ones.
  */
 
-// Canonical Commodity Dictionary
-const COMMODITY_MAP = {
-  // Onion
-  'onion': { code: 'ONION', name: 'Onion', hindi: 'प्याज', marathi: 'कांदा', category: 'Vegetables' },
-  'kanda': { code: 'ONION', name: 'Onion', hindi: 'प्याज', marathi: 'कांदा', category: 'Vegetables' },
-  'pyaaz': { code: 'ONION', name: 'Onion', hindi: 'प्याज', marathi: 'कांदा', category: 'Vegetables' },
-  'कांदा': { code: 'ONION', name: 'Onion', hindi: 'प्याज', marathi: 'कांदा', category: 'Vegetables' },
-  'प्याज': { code: 'ONION', name: 'Onion', hindi: 'प्याज', marathi: 'कांदा', category: 'Vegetables' },
+export const CANONICAL_PRICE_UNIT = 'INR/quintal';
+export const CANONICAL_ARRIVAL_UNIT = 'tonne';
 
-  // Tomato
-  'tomato': { code: 'TOMATO', name: 'Tomato', hindi: 'टमाटर', marathi: 'टोमॅटो', category: 'Vegetables' },
-  'tamatar': { code: 'TOMATO', name: 'Tomato', hindi: 'टमाटर', marathi: 'टोमॅटो', category: 'Vegetables' },
-  'टोमॅटो': { code: 'TOMATO', name: 'Tomato', hindi: 'टमाटर', marathi: 'टोमॅटो', category: 'Vegetables' },
-  'टमाटर': { code: 'TOMATO', name: 'Tomato', hindi: 'टमाटर', marathi: 'टोमॅटो', category: 'Vegetables' },
-
-  // Potato
-  'potato': { code: 'POTATO', name: 'Potato', hindi: 'आलू', marathi: 'बटाटा', category: 'Vegetables' },
-  'batata': { code: 'POTATO', name: 'Potato', hindi: 'आलू', marathi: 'बटाटा', category: 'Vegetables' },
-  'aaloo': { code: 'POTATO', name: 'Potato', hindi: 'आलू', marathi: 'बटाटा', category: 'Vegetables' },
-  'आलू': { code: 'POTATO', name: 'Potato', hindi: 'आलू', marathi: 'बटाटा', category: 'Vegetables' },
-  'बटाटा': { code: 'POTATO', name: 'Potato', hindi: 'आलू', marathi: 'बटाटा', category: 'Vegetables' },
-
-  // Soybean
-  'soybean': { code: 'SOYBEAN', name: 'Soybean', hindi: 'सोयाबीन', marathi: 'सोयाबीन', category: 'Oilseeds' },
-  'soyabean': { code: 'SOYBEAN', name: 'Soybean', hindi: 'सोयाबीन', marathi: 'सोयाबीन', category: 'Oilseeds' },
-  'सोयाबीन': { code: 'SOYBEAN', name: 'Soybean', hindi: 'सोयाबीन', marathi: 'सोयाबीन', category: 'Oilseeds' },
-
-  // Wheat
-  'wheat': { code: 'WHEAT', name: 'Wheat', hindi: 'गेहूं', marathi: 'गहू', category: 'Grains' },
-  'gehun': { code: 'WHEAT', name: 'Wheat', hindi: 'गेहूं', marathi: 'गहू', category: 'Grains' },
-  'gahu': { code: 'WHEAT', name: 'Wheat', hindi: 'गेहूं', marathi: 'गहू', category: 'Grains' },
-  'गेहूं': { code: 'WHEAT', name: 'Wheat', hindi: 'गेहूं', marathi: 'गहू', category: 'Grains' },
-  'गहू': { code: 'WHEAT', name: 'Wheat', hindi: 'गेहूं', marathi: 'गहू', category: 'Grains' },
-
-  // Cotton
-  'cotton': { code: 'COTTON', name: 'Cotton', hindi: 'कपास', marathi: 'कापूस', category: 'Fibers' },
-  'kapas': { code: 'COTTON', name: 'Cotton', hindi: 'कपास', marathi: 'कापूस', category: 'Fibers' },
-  'kapus': { code: 'COTTON', name: 'Cotton', hindi: 'कपास', marathi: 'कापूस', category: 'Fibers' },
-  'कपास': { code: 'COTTON', name: 'Cotton', hindi: 'कपास', marathi: 'कापूस', category: 'Fibers' },
-  'कापूस': { code: 'COTTON', name: 'Cotton', hindi: 'कपास', marathi: 'कापूस', category: 'Fibers' },
+// Price units -> factor that converts the source value into INR per quintal.
+const PRICE_UNITS = {
+  'inr/quintal': 1, 'rs/quintal': 1, 'rs./quintal': 1, 'rs/qtl': 1, 'inr/qtl': 1, '₹/quintal': 1,
+  'inr/kg': 100, 'rs/kg': 100, 'rs./kg': 100, '₹/kg': 100,
+  'inr/tonne': 0.1, 'rs/tonne': 0.1, 'inr/ton': 0.1, 'rs/ton': 0.1, '₹/tonne': 0.1,
 };
 
-// Canonical Mandi Dictionary
-const MANDI_MAP = {
-  'pune apmc (gultekdi)': { code: 'MH_PUNE_APMC', name: 'Pune APMC (Gultekdi)', district: 'Pune', state: 'Maharashtra', lat: 18.4967, lon: 73.8647 },
-  'pune': { code: 'MH_PUNE_APMC', name: 'Pune APMC (Gultekdi)', district: 'Pune', state: 'Maharashtra', lat: 18.4967, lon: 73.8647 },
-  'pune apmc': { code: 'MH_PUNE_APMC', name: 'Pune APMC (Gultekdi)', district: 'Pune', state: 'Maharashtra', lat: 18.4967, lon: 73.8647 },
-  'pune market yard': { code: 'MH_PUNE_APMC', name: 'Pune APMC (Gultekdi)', district: 'Pune', state: 'Maharashtra', lat: 18.4967, lon: 73.8647 },
-  'gultekdi': { code: 'MH_PUNE_APMC', name: 'Pune APMC (Gultekdi)', district: 'Pune', state: 'Maharashtra', lat: 18.4967, lon: 73.8647 },
-
-  'nashik market yard': { code: 'MH_NSK_MAIN', name: 'Nashik Market Yard', district: 'Nashik', state: 'Maharashtra', lat: 19.9975, lon: 73.7898 },
-  'nashik': { code: 'MH_NSK_MAIN', name: 'Nashik Market Yard', district: 'Nashik', state: 'Maharashtra', lat: 19.9975, lon: 73.7898 },
-  'nashik apmc': { code: 'MH_NSK_MAIN', name: 'Nashik Market Yard', district: 'Nashik', state: 'Maharashtra', lat: 19.9975, lon: 73.7898 },
-  'nasik': { code: 'MH_NSK_MAIN', name: 'Nashik Market Yard', district: 'Nashik', state: 'Maharashtra', lat: 19.9975, lon: 73.7898 },
-
-  'ahmednagar mandi': { code: 'MH_AHM_APMC', name: 'Ahmednagar Mandi', district: 'Ahmednagar', state: 'Maharashtra', lat: 19.0952, lon: 74.7480 },
-  'ahmednagar': { code: 'MH_AHM_APMC', name: 'Ahmednagar Mandi', district: 'Ahmednagar', state: 'Maharashtra', lat: 19.0952, lon: 74.7480 },
-  'ahmednagar apmc': { code: 'MH_AHM_APMC', name: 'Ahmednagar Mandi', district: 'Ahmednagar', state: 'Maharashtra', lat: 19.0952, lon: 74.7480 },
-  'ahmadnagar': { code: 'MH_AHM_APMC', name: 'Ahmednagar Mandi', district: 'Ahmednagar', state: 'Maharashtra', lat: 19.0952, lon: 74.7480 },
-
-  'baramati apmc': { code: 'MH_BAR_APMC', name: 'Baramati APMC', district: 'Pune', state: 'Maharashtra', lat: 18.1519, lon: 74.5772 },
-  'baramati': { code: 'MH_BAR_APMC', name: 'Baramati APMC', district: 'Pune', state: 'Maharashtra', lat: 18.1519, lon: 74.5772 },
-
-  'mumbai apmc (vashi)': { code: 'MH_MUM_VASHI', name: 'Mumbai APMC (Vashi)', district: 'Thane', state: 'Maharashtra', lat: 19.0771, lon: 72.9986 },
-  'vashi apmc': { code: 'MH_MUM_VASHI', name: 'Mumbai APMC (Vashi)', district: 'Thane', state: 'Maharashtra', lat: 19.0771, lon: 72.9986 },
-  'mumbai apmc': { code: 'MH_MUM_VASHI', name: 'Mumbai APMC (Vashi)', district: 'Thane', state: 'Maharashtra', lat: 19.0771, lon: 72.9986 },
-  'mumbai': { code: 'MH_MUM_VASHI', name: 'Mumbai APMC (Vashi)', district: 'Thane', state: 'Maharashtra', lat: 19.0771, lon: 72.9986 },
-
-  'lasalgaon apmc': { code: 'MH_NSK_LASALGAON', name: 'Lasalgaon APMC', district: 'Nashik', state: 'Maharashtra', lat: 20.1472, lon: 74.2289 },
-  'lasalgaon': { code: 'MH_NSK_LASALGAON', name: 'Lasalgaon APMC', district: 'Nashik', state: 'Maharashtra', lat: 20.1472, lon: 74.2289 },
+// Arrival quantity units -> factor that converts the source value into tonnes.
+const ARRIVAL_UNITS = {
+  tonne: 1, tonnes: 1, ton: 1, tons: 1, t: 1, mt: 1, 'metric tonne': 1, 'metric tonnes': 1,
+  quintal: 0.1, quintals: 0.1, qtl: 0.1,
+  kg: 0.001, kgs: 0.001, kilogram: 0.001, kilograms: 0.001,
 };
 
-/**
- * Normalizes date string to YYYY-MM-DD
- */
-export function normalizeDate(dateStr) {
-  if (!dateStr) return null;
-  const str = String(dateStr).trim();
+// Exact aliases only (transliterations / local names of the SAME commodity).
+const COMMODITY_ALIASES = {
+  onion: 'ONION', kanda: 'ONION', pyaaz: 'ONION', pyaz: 'ONION', 'कांदा': 'ONION', 'प्याज': 'ONION',
+  tomato: 'TOMATO', tamatar: 'TOMATO', 'टोमॅटो': 'TOMATO', 'टमाटर': 'TOMATO',
+  potato: 'POTATO', batata: 'POTATO', aloo: 'POTATO', aaloo: 'POTATO', 'आलू': 'POTATO', 'बटाटा': 'POTATO',
+  soybean: 'SOYBEAN', soyabean: 'SOYBEAN', 'सोयाबीन': 'SOYBEAN',
+  wheat: 'WHEAT', gehun: 'WHEAT', gahu: 'WHEAT', 'गेहूं': 'WHEAT', 'गहू': 'WHEAT',
+  cotton: 'COTTON', kapas: 'COTTON', kapus: 'COTTON', 'कपास': 'COTTON', 'कापूस': 'COTTON',
+};
 
-  // Handle DD/MM/YYYY or DD-MM-YYYY
-  const parts = str.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
-  if (parts) {
-    const day = parts[1].padStart(2, '0');
-    const month = parts[2].padStart(2, '0');
-    const year = parts[3];
-    return `${year}-${month}-${day}`;
-  }
+const COMMODITY_META = {
+  ONION: { name: 'Onion', hindi: 'प्याज', marathi: 'कांदा', category: 'Vegetables' },
+  TOMATO: { name: 'Tomato', hindi: 'टमाटर', marathi: 'टोमॅटो', category: 'Vegetables' },
+  POTATO: { name: 'Potato', hindi: 'आलू', marathi: 'बटाटा', category: 'Vegetables' },
+  SOYBEAN: { name: 'Soybean', hindi: 'सोयाबीन', marathi: 'सोयाबीन', category: 'Oilseeds' },
+  WHEAT: { name: 'Wheat', hindi: 'गेहूं', marathi: 'गहू', category: 'Cereals' },
+  COTTON: { name: 'Cotton', hindi: 'कपास', marathi: 'कापूस', category: 'Fibre Crops' },
+};
 
-  // Handle ISO or standard formats
-  const parsed = new Date(str);
-  if (!isNaN(parsed.getTime())) {
-    return parsed.toISOString().split('T')[0];
-  }
+const MISSING_TOKENS = new Set(['', 'na', 'n/a', 'nr', 'null', 'nil', '-', '--', 'none']);
 
-  return str;
+/** Collapses whitespace; returns null for empty or placeholder values. */
+export function cleanText(value) {
+  if (value === undefined || value === null) return null;
+  const text = String(value).replace(/\s+/g, ' ').trim();
+  return MISSING_TOKENS.has(text.toLowerCase()) ? null : text;
+}
+
+/** Matching key: case-insensitive, punctuation-insensitive ("Pune(Moshi)" == "Pune (Moshi)"). */
+export function nameKey(value) {
+  const text = cleanText(value);
+  if (!text) return null;
+  return text
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim() || null;
+}
+
+function slugPart(value) {
+  const key = nameKey(value) || '';
+  const ascii = key.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  // Non-Latin names keep a stable identity through a hash instead of collapsing to "".
+  return ascii || `U${crypto.createHash('sha1').update(key).digest('hex').slice(0, 10).toUpperCase()}`;
+}
+
+/** Deterministic code (<= 64 chars). Parts are joined with "__" so boundaries never merge. */
+export function makeCode(parts, maxLength = 64) {
+  const full = parts.map(slugPart).join('__');
+  if (full.length <= maxLength) return full;
+  const hash = crypto.createHash('sha1').update(full).digest('hex').slice(0, 10).toUpperCase();
+  return `${full.slice(0, maxLength - 11)}_${hash}`;
 }
 
 /**
- * Normalizes commodity metadata
+ * Parses a reporting date. Supported formats:
+ *   'ISO' -> YYYY-MM-DD (a trailing time part is ignored)
+ *   'DMY' -> DD/MM/YYYY or DD-MM-YYYY (data.gov.in / Agmarknet convention)
+ *   'AUTO'-> ISO when the year comes first, otherwise DMY. Never US month-first.
+ * Returns YYYY-MM-DD, or null when the value is missing or not a real calendar date.
  */
-export function normalizeCommodity(commodityInput) {
-  if (!commodityInput) return null;
-  const clean = String(commodityInput).trim().toLowerCase();
+export function normalizeDate(value, format = 'AUTO') {
+  const text = cleanText(value);
+  if (!text) return null;
+  let year;
+  let month;
+  let day;
+  const iso = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s].*)?$/);
+  const dmy = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (iso && format !== 'DMY') [, year, month, day] = iso.map(Number);
+  else if (dmy && format !== 'ISO') [, day, month, year] = dmy.map(Number);
+  else return null;
 
-  // Try direct match or key lookup
-  for (const [key, meta] of Object.entries(COMMODITY_MAP)) {
-    if (clean === key || clean.includes(key)) {
-      return meta;
-    }
-  }
-
-  // Fallback generation for unknown commodities
-  const formattedName = clean.charAt(0).toUpperCase() + clean.slice(1);
-  const code = clean.replace(/[^a-z0-9]/gi, '_').toUpperCase();
-  return {
-    code,
-    name: formattedName,
-    hindi: formattedName,
-    marathi: formattedName,
-    category: 'General',
-  };
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-/**
- * Normalizes mandi identity & location
- */
-export function normalizeMandi(mandiInput, fallbackDistrict = 'Unknown', fallbackState = 'Maharashtra') {
-  if (!mandiInput) return null;
-  const clean = String(mandiInput).trim().toLowerCase();
-
-  for (const [key, meta] of Object.entries(MANDI_MAP)) {
-    if (clean === key || clean.includes(key)) {
-      return meta;
-    }
-  }
-
-  // Fallback generation
-  const formattedName = mandiInput.trim();
-  const district = fallbackDistrict.trim();
-  const state = fallbackState.trim();
-  const code = `${state.slice(0, 2).toUpperCase()}_${district.slice(0, 3).toUpperCase()}_${clean.replace(/[^a-z0-9]/gi, '_').toUpperCase().slice(0, 10)}`;
-
-  return {
-    code,
-    name: formattedName,
-    district,
-    state,
-    lat: null,
-    lon: null,
-  };
+/** Parses a numeric field; returns { value, invalid } where value is null when missing. */
+export function parseNumber(value) {
+  if (typeof value === 'number') return Number.isFinite(value) ? { value, invalid: false } : { value: null, invalid: true };
+  const text = cleanText(value);
+  if (!text) return { value: null, invalid: false };
+  const number = Number(text.replace(/,/g, ''));
+  return Number.isFinite(number) ? { value: number, invalid: false } : { value: null, invalid: true };
 }
 
+export function normalizePriceUnit(unit) {
+  const key = cleanText(unit)?.toLowerCase().replace(/\s+/g, '').replace('rupees', 'rs') ?? null;
+  return key && PRICE_UNITS[key] !== undefined ? { unit: CANONICAL_PRICE_UNIT, factor: PRICE_UNITS[key] } : null;
+}
+
+export function normalizeArrivalUnit(unit) {
+  const key = cleanText(unit)?.toLowerCase() ?? null;
+  return key && ARRIVAL_UNITS[key] !== undefined ? { unit: CANONICAL_ARRIVAL_UNIT, factor: ARRIVAL_UNITS[key] } : null;
+}
+
+/** Commodity identity by exact (normalised) name; unknown names keep their own identity. */
+export function normalizeCommodity(value) {
+  const name = cleanText(value);
+  const key = nameKey(value);
+  if (!name || !key) return null;
+  const knownCode = COMMODITY_ALIASES[key];
+  if (knownCode) return { code: knownCode, ...COMMODITY_META[knownCode] };
+  return { code: makeCode([name]), name, hindi: null, marathi: null, category: null };
+}
+
+/** Market identity = (state, district, market). Returns null when any part is missing. */
+export function normalizeMandi(market, district, state) {
+  const name = cleanText(market);
+  const districtName = cleanText(district);
+  const stateName = cleanText(state);
+  if (!name || !districtName || !stateName) return null;
+  return { code: makeCode([stateName, districtName, name]), name, district: districtName, state: stateName };
+}
+
+const round2 = (value) => (value === null ? null : Math.round(value * 100) / 100);
+
 /**
- * Normalizes a complete mandi price record
+ * Normalises one provider record. Never throws: problems become quality flags,
+ * and identity/unit/date problems leave the relevant canonical fields null so the
+ * validator can reject the record with a clear reason.
  */
 export function normalizeMandiRecord(record) {
-  const normCommodity = normalizeCommodity(record.commodity_name || record.commodity_code);
-  const normMandi = normalizeMandi(record.mandi_name || record.market, record.district, record.state);
-  const normDate = normalizeDate(record.price_date);
+  const flags = [];
+  const commodity = normalizeCommodity(record.commodity_name ?? record.commodity);
+  const mandi = normalizeMandi(record.mandi_name ?? record.market, record.district, record.state);
+  if (!mandi) flags.push('MISSING_LOCATION');
+  if (!commodity) flags.push('MISSING_COMMODITY');
 
-  let unit = (record.unit || 'quintal').toLowerCase();
-  let minPrice = Number(record.min_price);
-  let maxPrice = Number(record.max_price);
-  let modalPrice = Number(record.modal_price);
-  let arrivals = Number(record.arrivals_quantity || 0);
+  const priceDate = normalizeDate(record.price_date, record.date_format || 'AUTO');
+  if (!priceDate) flags.push(cleanText(record.price_date) ? 'INVALID_DATE' : 'MISSING_DATE');
 
-  // Standardize units to 'quintal'
-  if (unit === 'kg' || unit === 'kilogram') {
-    // 1 quintal = 100 kg
-    minPrice = minPrice * 100;
-    maxPrice = maxPrice * 100;
-    modalPrice = modalPrice * 100;
-    arrivals = arrivals / 100;
-    unit = 'quintal';
-  } else if (unit === 'ton' || unit === 'tonne' || unit === 'mt') {
-    // 1 ton = 10 quintals
-    minPrice = minPrice / 10;
-    maxPrice = maxPrice / 10;
-    modalPrice = modalPrice / 10;
-    arrivals = arrivals * 10;
-    unit = 'quintal';
-  } else {
-    unit = 'quintal';
+  const priceUnit = normalizePriceUnit(record.price_unit);
+  if (!priceUnit) flags.push(cleanText(record.price_unit) ? 'UNKNOWN_PRICE_UNIT' : 'MISSING_PRICE_UNIT');
+  if (record.price_unit_assumed) flags.push('PRICE_UNIT_FROM_PUBLISHER_CONVENTION');
+
+  const prices = {};
+  for (const field of ['min_price', 'max_price', 'modal_price']) {
+    const parsed = parseNumber(record[field]);
+    if (parsed.invalid) flags.push(`UNPARSEABLE_${field.toUpperCase()}`);
+    let value = parsed.value;
+    // Agmarknet publishes 0 where a min/max price was not reported.
+    if (value === 0 && field !== 'modal_price') {
+      flags.push(`ZERO_${field.toUpperCase()}_TREATED_AS_MISSING`);
+      value = null;
+    }
+    if (value === null && !parsed.invalid) flags.push(`MISSING_${field.toUpperCase()}`);
+    prices[field] = value !== null && priceUnit ? round2(value * priceUnit.factor) : null;
+  }
+
+  const arrivals = parseNumber(record.arrivals_quantity);
+  if (arrivals.invalid) flags.push('UNPARSEABLE_ARRIVALS');
+  let arrivalsQuantity = null;
+  let arrivalUnit = null;
+  if (arrivals.value !== null) {
+    const unit = normalizeArrivalUnit(record.arrival_unit);
+    if (unit) {
+      arrivalsQuantity = round2(arrivals.value * unit.factor);
+      arrivalUnit = unit.unit;
+    } else {
+      flags.push('UNKNOWN_ARRIVAL_UNIT'); // value kept in raw_payload only
+    }
   }
 
   return {
-    mandi_code: normMandi.code,
-    mandi_name: normMandi.name,
-    district: normMandi.district,
-    state: normMandi.state,
-    latitude: normMandi.lat !== undefined ? normMandi.lat : record.latitude || null,
-    longitude: normMandi.lon !== undefined ? normMandi.lon : record.longitude || null,
-    commodity_code: normCommodity.code,
-    commodity_name: normCommodity.name,
-    commodity_category: normCommodity.category,
-    price_date: normDate,
-    min_price: Number(minPrice.toFixed(2)),
-    max_price: Number(maxPrice.toFixed(2)),
-    modal_price: Number(modalPrice.toFixed(2)),
-    arrivals_quantity: Number(arrivals.toFixed(2)),
-    unit,
-    variety: record.variety ? String(record.variety).trim() : 'Standard',
-    grade: record.grade ? String(record.grade).trim() : 'FAQ',
-    source: record.source || 'UNKNOWN',
-    is_sample_data: Boolean(record.is_sample_data),
-    raw_payload: record.raw_payload || null,
+    source: cleanText(record.source),
+    is_sample_data: record.is_sample_data === true,
+    source_record_key: cleanText(record.source_record_key),
+    source_market_id: cleanText(record.source_market_id),
+    source_commodity_id: cleanText(record.source_commodity_id),
+    source_state_id: cleanText(record.source_state_id),
+    source_district_id: cleanText(record.source_district_id),
+    source_market_name: cleanText(record.mandi_name ?? record.market),
+    source_commodity_name: cleanText(record.commodity_name ?? record.commodity),
+    source_state_name: cleanText(record.state),
+    source_district_name: cleanText(record.district),
+    source_variety: cleanText(record.variety),
+    source_grade: cleanText(record.grade),
+
+    mandi_code: mandi?.code ?? null,
+    mandi_name: mandi?.name ?? null,
+    state: mandi?.state ?? null,
+    district: mandi?.district ?? null,
+    latitude: parseNumber(record.latitude).value,
+    longitude: parseNumber(record.longitude).value,
+
+    commodity_code: commodity?.code ?? null,
+    commodity_name: commodity?.name ?? null,
+    commodity_category: commodity?.category ?? null,
+    commodity_hindi: commodity?.hindi ?? null,
+    commodity_marathi: commodity?.marathi ?? null,
+
+    variety: cleanText(record.variety),
+    grade: cleanText(record.grade),
+    price_date: priceDate,
+    min_price: prices.min_price,
+    max_price: prices.max_price,
+    modal_price: prices.modal_price,
+    price_unit: priceUnit?.unit ?? null,
+    arrivals_quantity: arrivalsQuantity,
+    arrival_unit: arrivalUnit,
+    quality_flags: [...new Set([...(record.quality_flags || []), ...flags])],
+    fetched_at: record.fetched_at || null,
+    raw_payload: record.raw_payload ?? null,
   };
 }
 
 export default {
+  cleanText,
+  nameKey,
+  makeCode,
   normalizeDate,
+  parseNumber,
+  normalizePriceUnit,
+  normalizeArrivalUnit,
   normalizeCommodity,
   normalizeMandi,
   normalizeMandiRecord,

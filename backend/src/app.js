@@ -4,7 +4,7 @@ import { config } from './config/index.js';
 import healthRoutes from './routes/health.routes.js';
 import createAuthRoutes from './routes/auth.routes.js';
 import createFarmerRoutes from './routes/farmer.routes.js';
-import mandiRoutes from './routes/mandi.routes.js';
+import createMandiRoutes from './routes/mandi.routes.js';
 import { requireAuth as defaultRequireAuth } from './middleware/auth.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { createEmailProvider } from './services/email/emailProvider.js';
@@ -18,11 +18,16 @@ export function createDefaultWelcomeEmailService() {
 }
 
 /**
- * Builds the Express app. `requireAuth` and `welcomeEmail` are injectable so
- * tests can supply a fake token verifier / email provider; production always
- * uses Firebase Admin verification and the configured email provider.
+ * Builds the Express app. `requireAuth`, `welcomeEmail` and `mandiRoutesOptions` are
+ * injectable so tests can supply a fake token verifier / email provider / ingestion
+ * authoriser; production always uses Firebase Admin verification, the configured
+ * email provider and denies HTTP ingestion until an admin role is approved.
  */
-export function createApp({ requireAuth = defaultRequireAuth, welcomeEmail = createDefaultWelcomeEmailService() } = {}) {
+export function createApp({
+  requireAuth = defaultRequireAuth,
+  welcomeEmail = createDefaultWelcomeEmailService(),
+  mandiRoutesOptions = {},
+} = {}) {
   const app = express();
   app.locals.welcomeEmail = welcomeEmail;
 
@@ -64,7 +69,7 @@ export function createApp({ requireAuth = defaultRequireAuth, welcomeEmail = cre
   app.use('/api/health', healthRoutes);
   app.use('/api/auth', createAuthRoutes(requireAuth));
   app.use('/api/farmers', createFarmerRoutes(requireAuth));
-  app.use('/api/mandi', mandiRoutes);
+  app.use('/api/mandi', createMandiRoutes({ requireAuth, ...mandiRoutesOptions }));
 
   // Error handling
   app.use(notFoundHandler);

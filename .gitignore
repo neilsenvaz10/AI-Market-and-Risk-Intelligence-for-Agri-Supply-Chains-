@@ -45,5 +45,8 @@ lerna-debug.log*
 tmp/
 temp/
 
+# Downloaded mandi datasets (CSV/raw/manifests from npm run ceda:export)
+backend/data/
+
 # PostgreSQL Docker Volumes
 postgres_data/

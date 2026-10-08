@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { formatQuantity, translateCrop, translateLocation } from '../constants/profile';
 import { t } from '../i18n/strings';
 import { getLatestMandiPrices } from '../services/api';
+import { formatFetchedAt, formatReportDate, formatTrend, hasTrend, sourceLabel } from '../utils/mandiFeed';
 
 // Primary mandis for the dashboard card, in display order
 const HOME_MANDIS = {
@@ -13,18 +14,11 @@ const HOME_MANDIS = {
 };
 const HOME_MANDI_CODES = Object.keys(HOME_MANDIS);
 
-const SOURCE_LABELS = {
-  DATA_GOV_IN: 'AGMARKNET / data.gov.in',
-  AGMARKNET: 'AGMARKNET / data.gov.in',
-  CEDA: 'CEDA (Ashoka University)',
-};
-
-const DATE_LOCALES = { en: 'en-IN', hi: 'hi-IN', mr: 'mr-IN' };
-
 const TREND_STYLES = {
   up: { icon: 'trending_up', tone: 'text-secondary' },
   down: { icon: 'trending_down', tone: 'text-error' },
   stable: { icon: 'trending_flat', tone: 'text-on-surface-variant' },
+  none: { icon: 'horizontal_rule', tone: 'text-on-surface-variant' },
 };
 
 const homeMandiRank = (row) => {
@@ -32,27 +26,24 @@ const homeMandiRank = (row) => {
   return index === -1 ? HOME_MANDI_CODES.length : index;
 };
 
-const formatReportDate = (value, language) => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString(DATE_LOCALES[language] || 'en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-};
-
 export default function HomePage() {
   const { farmer, language } = useAuth();
   const firstName = farmer?.fullName?.split(' ')[0] || '';
-  const [priceFeed, setPriceFeed] = useState({ status: 'loading', rows: [] }); // 'loading' | 'ready' | 'error'
+  // 'loading' | 'ready' | 'error'; meta = freshness summary from the API
+  const [priceFeed, setPriceFeed] = useState({ status: 'loading', rows: [], meta: null });
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
     getLatestMandiPrices({ commodity: 'ONION' })
       .then((res) => {
-        if (isMounted) setPriceFeed({ status: 'ready', rows: Array.isArray(res?.data) ? res.data : [] });
+        if (isMounted) {
+          setPriceFeed({ status: 'ready', rows: Array.isArray(res?.data) ? res.data : [], meta: res?.meta || null });
+        }
       })
       .catch(() => {
         // No fallback prices: surface the failure instead of showing stale numbers
-        if (isMounted) setPriceFeed({ status: 'error', rows: [] });
+        if (isMounted) setPriceFeed({ status: 'error', rows: [], meta: null });
       });
 
     return () => {
@@ -61,19 +52,23 @@ export default function HomePage() {
   }, [reloadKey]);
 
   const retryPrices = () => {
-    setPriceFeed({ status: 'loading', rows: [] });
+    setPriceFeed({ status: 'loading', rows: [], meta: null });
     setReloadKey((key) => key + 1);
   };
 
   const onionPrices = [...priceFeed.rows].sort((a, b) => homeMandiRank(a) - homeMandiRank(b)).slice(0, 3);
   const hasSampleData = onionPrices.some((row) => row.is_sample_data);
-  const priceSources = [
-    ...new Set(
-      onionPrices.map((row) =>
-        row.is_sample_data ? t(language, 'mandiFeed.sampleSource') : SOURCE_LABELS[row.source] || row.source
-      )
-    ),
-  ];
+  const priceSources = [...new Set(onionPrices.map((row) => sourceLabel(row, language)))];
+
+  // Freshness tile: the latest GENUINE reporting date from the API (not a fetch
+  // time and never a fixed claim). Sample-only and unavailable states are explicit.
+  const meta = priceFeed.meta;
+  const freshness =
+    priceFeed.status === 'loading' ? { kind: 'loading' }
+      : priceFeed.status === 'error' ? { kind: 'unavailable' }
+        : meta?.latest_genuine_reporting_date ? { kind: 'genuine', reported: meta.latest_genuine_reporting_date, fetched: meta.latest_genuine_fetched_at }
+          : meta?.latest_sample_reporting_date ? { kind: 'sample', reported: meta.latest_sample_reporting_date }
+            : { kind: 'none' };
 
   return (
     <div className="flex flex-col w-full pb-8">
@@ -212,18 +207,34 @@ export default function HomePage() {
             {t(language, 'home.tile.aiConfSubtext')}
           </p>
         </div>
-        {/* Data Freshness Tile */}
+        {/* Data Freshness Tile — latest market reporting date from the price API */}
         <div className="bg-surface-container-lowest p-3 rounded-xl shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between text-on-surface-variant mb-1">
             <span className="font-body-sm text-xs">{t(language, 'home.tile.freshness')}</span>
-            <span className="w-2 h-2 rounded-full bg-secondary"></span>
+            <span
+              className={`w-2 h-2 rounded-full ${
+                freshness.kind === 'genuine' ? 'bg-secondary' : freshness.kind === 'sample' ? 'bg-amber-600' : 'bg-outline'
+              }`}
+            ></span>
           </div>
           <div>
-            <span className="font-headline-md text-lg text-on-surface font-bold">2h</span>
-            <span className="text-[10px] text-on-surface-variant"> {t(language, 'home.tile.freshnessUnit')}</span>
+            <span className="font-headline-md text-lg text-on-surface font-bold">
+              {freshness.reported ? formatReportDate(freshness.reported, language, { year: false }) : '—'}
+            </span>
           </div>
-          <p className="font-body-sm text-[10px] text-secondary font-medium truncate">
-            {t(language, 'home.tile.freshnessSubtext')}
+          <p
+            className={`font-body-sm text-[10px] font-medium truncate ${
+              freshness.kind === 'genuine' ? 'text-secondary' : freshness.kind === 'sample' ? 'text-amber-800' : 'text-on-surface-variant'
+            }`}
+          >
+            {freshness.kind === 'genuine' &&
+              (freshness.fetched
+                ? t(language, 'home.tile.reportedFetched', { date: formatFetchedAt(freshness.fetched, language) })
+                : t(language, 'home.tile.reportedDate'))}
+            {freshness.kind === 'sample' && t(language, 'mandiFeed.sampleBadge')}
+            {freshness.kind === 'none' && t(language, 'home.tile.noMarketData')}
+            {freshness.kind === 'unavailable' && t(language, 'home.tile.feedUnavailable')}
+            {freshness.kind === 'loading' && t(language, 'mandiFeed.loading')}
           </p>
         </div>
       </div>
@@ -303,10 +314,10 @@ export default function HomePage() {
               {onionPrices.map((row) => {
                 const homeMandi = HOME_MANDIS[row.mandi_code];
                 const badge = homeMandi?.badge || String(row.mandi_name || '').slice(0, 3).toUpperCase();
-                const trend = TREND_STYLES[row.trend_direction] || TREND_STYLES.stable;
-                const trendPercent = Number(row.trend_percent) || 0;
+                const trend = hasTrend(row) ? TREND_STYLES[row.trend_direction] : TREND_STYLES.none;
                 const price = `₹${Number(row.modal_price).toLocaleString('en-IN')}`;
-                const unit = t(language, row.unit === 'kg' ? 'unit.kg' : 'home.mandiPrices.quintal');
+                // The API stores every price in INR per quintal (price_unit).
+                const unit = t(language, 'home.mandiPrices.quintal');
 
                 return (
                   <div key={row.id} className="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low">
@@ -323,6 +334,7 @@ export default function HomePage() {
                       <div>
                         <p className="font-label-lg text-sm font-bold text-on-surface">
                           {homeMandi ? t(language, homeMandi.nameKey) : row.mandi_name}
+                          {row.variety && <span className="font-normal text-on-surface-variant"> · {row.variety}</span>}
                         </p>
                         <p className="font-body-sm text-xs text-on-surface-variant">
                           {t(language, 'home.mandiPrices.modal')}: {price} / {unit}
@@ -337,7 +349,9 @@ export default function HomePage() {
                         <span className="material-symbols-outlined text-[16px]">{trend.icon}</span> {price}
                       </span>
                       <span className={`text-[10px] font-medium ${trend.tone}`}>
-                        {trendPercent > 0 ? '+' : ''}{trendPercent}% {t(language, 'mandiFeed.vsPrevious')}
+                        {hasTrend(row)
+                          ? `${formatTrend(row)} ${t(language, 'mandiFeed.vsPrevious')}`
+                          : t(language, 'mandiFeed.noEarlierReport')}
                       </span>
                     </div>
                   </div>

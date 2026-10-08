@@ -8,9 +8,17 @@
     "start": "node src/server.js",
     "dev": "node --watch --watch-path=src --watch-path=.env src/server.js",
     "migrate": "node scripts/migrate.js",
-    "test": "node --test tests/**/*.test.js test/**/*.test.js",
-    "test:auth": "node --test tests/**/*.test.js",
-    "test:mandi": "node --test test/**/*.test.js"
+    "migrate:status": "node scripts/migrate.js --status",
+    "test": "npm run test:unit && npm run test:db",
+    "test:unit": "node --test test/*.test.js",
+    "test:db": "node scripts/test-db.js",
+    "mandi:sync": "node scripts/mandi-sync.js",
+    "ceda:export": "node scripts/ceda-export.js",
+    "migrate:rehearse": "node scripts/rehearse-migration.js",
+    "admin:claim": "node scripts/firebase-admin-claim.js",
+    "live:preflight": "node scripts/live-preflight.js",
+    "live:db": "node scripts/live-test-db.js",
+    "trace:record": "node scripts/trace-record.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

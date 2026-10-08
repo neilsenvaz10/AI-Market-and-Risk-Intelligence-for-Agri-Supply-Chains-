@@ -31,7 +31,7 @@ export function mapDatabaseError(err) {
     return new HttpError(503, 'DATABASE_UNAVAILABLE', 'The database is temporarily unavailable. Please try again shortly.');
   }
   if (err.code === '42P01') {
-    return new HttpError(503, 'DATABASE_NOT_MIGRATED', 'The database schema is not up to date. Run the Phase 2 migration.');
+    return new HttpError(503, 'DATABASE_NOT_MIGRATED', 'The database schema is not up to date. Apply the pending migrations (npm run migrate).');
   }
   if (err.code === '23514' || err.code === '22P02' || err.code === '22001' || err.code === '22003') {
     return new HttpError(400, 'VALIDATION_ERROR', 'One or more fields are invalid.');

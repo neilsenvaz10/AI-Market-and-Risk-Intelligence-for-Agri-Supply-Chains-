@@ -1,6 +1,11 @@
 -- =====================================================================
 -- FASALYTICS DATABASE SCHEMA - PHASE 1 & PHASE 3
 -- Core relational tables supporting Mandi Intelligence & ML Forecasting
+--
+-- Used by the optional Docker Compose setup only. For local PostgreSQL run
+-- `npm run migrate` (backend): migrations 004/005 own the Phase 3 tables and
+-- upgrade the definitions below (RESTRICT foreign keys, nullable prices,
+-- provenance columns, conflicts/revisions, resolved view).
 -- =====================================================================
 
 -- 1. Service Heartbeat & Metadata table

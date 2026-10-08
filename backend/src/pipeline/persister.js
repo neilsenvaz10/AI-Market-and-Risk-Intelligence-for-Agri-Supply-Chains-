@@ -1,198 +1,257 @@
-import { pool } from '../db.js';
+import { pool as defaultPool } from '../db.js';
+import { CONFLICT_TOLERANCE, observationKey, valueSignature } from './deduplicator.js';
 
 /**
  * Mandi Data Persister
- * Handles transactional, idempotent persistence into PostgreSQL.
+ *
+ * - Each record is written inside its own SAVEPOINT: a bad row is rolled back
+ *   alone and reported; it can no longer undo earlier rows while counts claim success.
+ * - Counts are returned only after COMMIT succeeds, and are cross-checked against
+ *   the rows that actually carry this run's id.
+ * - Re-imports are idempotent: identical values are counted as "unchanged".
+ * - A changed value from the same source is stored with its previous version in
+ *   mandi_price_revisions (audit trail) before the row is updated.
+ * - Sample (MOCK) rows are refused unless explicitly allowed.
  */
-export class MandiPersister {
+
+export class SampleDataWriteError extends Error {
   constructor() {
-    this.mandiCache = new Map();
-    this.commodityCache = new Map();
+    super('Refusing to write sample (MOCK) records: set MANDI_ALLOW_SAMPLE_DATA=true in an isolated test environment only.');
+    this.code = 'SAMPLE_DATA_WRITE_REFUSED';
+  }
+}
+
+export class PersistenceIntegrityError extends Error {
+  constructor(message) {
+    super(message);
+    this.code = 'PERSISTENCE_COUNT_MISMATCH';
+  }
+}
+
+const PRICE_FIELDS = ['min_price', 'max_price', 'modal_price', 'arrivals_quantity', 'price_unit', 'arrival_unit'];
+const numericOrNull = (value) => (value === null || value === undefined ? null : Number(value));
+const sameValue = (a, b) => (a === null || a === undefined ? null : String(Number.isFinite(Number(a)) ? Number(a) : a))
+  === (b === null || b === undefined ? null : String(Number.isFinite(Number(b)) ? Number(b) : b));
+
+// Never let database error text (which can contain values) grow without bound in logs.
+const safeMessage = (err) => String(err?.message || err).slice(0, 300);
+
+export class MandiPersister {
+  constructor({ pool = defaultPool, allowSampleData = false, conflictTolerance = CONFLICT_TOLERANCE } = {}) {
+    this.pool = pool;
+    this.allowSampleData = allowSampleData;
+    this.conflictTolerance = conflictTolerance;
   }
 
-  /**
-   * Refreshes internal ID caches from PostgreSQL
-   */
-  async refreshCaches(client) {
-    const mandisRes = await client.query('SELECT id, code FROM mandis');
-    this.mandiCache.clear();
-    for (const row of mandisRes.rows) {
-      this.mandiCache.set(row.code, row.id);
-    }
-
-    const commoditiesRes = await client.query('SELECT id, code FROM commodities');
-    this.commodityCache.clear();
-    for (const row of commoditiesRes.rows) {
-      this.commodityCache.set(row.code, row.id);
-    }
-  }
-
-  /**
-   * Ensures mandi exists in the database and returns its ID
-   */
-  async ensureMandi(client, record) {
-    if (this.mandiCache.has(record.mandi_code)) {
-      return this.mandiCache.get(record.mandi_code);
-    }
-
-    const insertRes = await client.query(
-      `INSERT INTO mandis (code, name, state, district, market_center, latitude, longitude)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       ON CONFLICT (code) DO UPDATE
-       SET name = EXCLUDED.name, updated_at = CURRENT_TIMESTAMP
+  async #ensureMandi(client, record, cache) {
+    if (cache.has(record.mandi_code)) return cache.get(record.mandi_code);
+    // Existing mandis are never renamed or relocated by a later import.
+    const res = await client.query(
+      `INSERT INTO mandis (code, name, state, district, latitude, longitude)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (code) DO UPDATE SET updated_at = mandis.updated_at
        RETURNING id`,
-      [
-        record.mandi_code,
-        record.mandi_name,
-        record.state,
-        record.district,
-        record.market_center || record.mandi_name,
-        record.latitude || null,
-        record.longitude || null,
-      ]
+      [record.mandi_code, record.mandi_name, record.state, record.district, record.latitude, record.longitude]
+    );
+    return res.rows[0].id;
+  }
+
+  async #ensureCommodity(client, record, cache) {
+    if (cache.has(record.commodity_code)) return cache.get(record.commodity_code);
+    const res = await client.query(
+      `INSERT INTO commodities (code, name, hindi_name, marathi_name, category, standard_unit)
+       VALUES ($1, $2, $3, $4, $5, 'quintal')
+       ON CONFLICT (code) DO UPDATE SET updated_at = commodities.updated_at
+       RETURNING id`,
+      [record.commodity_code, record.commodity_name, record.commodity_hindi, record.commodity_marathi, record.commodity_category]
+    );
+    return res.rows[0].id;
+  }
+
+  async #upsertPrice(client, record, mandiId, commodityId, runId) {
+    const existing = await client.query(
+      `SELECT id, min_price, max_price, modal_price, arrivals_quantity, price_unit, arrival_unit
+       FROM mandi_prices
+       WHERE source = $1 AND mandi_id = $2 AND commodity_id = $3 AND price_date = $4
+         AND variety IS NOT DISTINCT FROM $5 AND grade IS NOT DISTINCT FROM $6
+       FOR UPDATE`,
+      [record.source, mandiId, commodityId, record.price_date, record.variety, record.grade]
     );
 
-    const id = insertRes.rows[0].id;
-    this.mandiCache.set(record.mandi_code, id);
-    return id;
-  }
-
-  /**
-   * Ensures commodity exists in the database and returns its ID
-   */
-  async ensureCommodity(client, record) {
-    if (this.commodityCache.has(record.commodity_code)) {
-      return this.commodityCache.get(record.commodity_code);
+    if (existing.rowCount === 0) {
+      const res = await client.query(
+        `INSERT INTO mandi_prices (
+           mandi_id, commodity_id, price_date, min_price, max_price, modal_price,
+           arrivals_quantity, unit, price_unit, arrival_unit, variety, grade, source, is_sample_data,
+           source_record_key, source_market_id, source_commodity_id, source_state_id, source_district_id,
+           source_market_name, source_commodity_name, source_state_name, source_district_name,
+           source_variety, source_grade, quality_flags, raw_payload, fetched_at, last_seen_at, ingestion_run_id
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,'quintal',$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,
+                   COALESCE($27::timestamptz, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP, $28)
+         RETURNING id`,
+        [
+          mandiId, commodityId, record.price_date, record.min_price, record.max_price, record.modal_price,
+          record.arrivals_quantity, record.price_unit, record.arrival_unit, record.variety, record.grade,
+          record.source, record.is_sample_data,
+          record.source_record_key, record.source_market_id, record.source_commodity_id, record.source_state_id,
+          record.source_district_id, record.source_market_name, record.source_commodity_name, record.source_state_name,
+          record.source_district_name, record.source_variety, record.source_grade, record.quality_flags || [],
+          record.raw_payload === null || record.raw_payload === undefined ? null : JSON.stringify(record.raw_payload),
+          record.fetched_at, runId,
+        ]
+      );
+      return { outcome: 'inserted', id: res.rows[0].id };
     }
 
-    const insertRes = await client.query(
-      `INSERT INTO commodities (code, name, category, standard_unit)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (code) DO UPDATE
-       SET name = EXCLUDED.name, updated_at = CURRENT_TIMESTAMP
-       RETURNING id`,
+    const row = existing.rows[0];
+    const changed = PRICE_FIELDS.some((field) => !sameValue(row[field], record[field]));
+    if (!changed) {
+      await client.query('UPDATE mandi_prices SET last_seen_at = CURRENT_TIMESTAMP WHERE id = $1', [row.id]);
+      return { outcome: 'unchanged', id: row.id };
+    }
+
+    const previous = Object.fromEntries(PRICE_FIELDS.map((f) => [f, row[f] === null ? null : (f.endsWith('unit') ? row[f] : Number(row[f]))]));
+    const next = Object.fromEntries(PRICE_FIELDS.map((f) => [f, f.endsWith('unit') ? record[f] : numericOrNull(record[f])]));
+    await client.query(
+      `INSERT INTO mandi_price_revisions (price_id, ingestion_run_id, previous_values, new_values)
+       VALUES ($1, $2, $3, $4)`,
+      [row.id, runId, JSON.stringify(previous), JSON.stringify(next)]
+    );
+    await client.query(
+      `UPDATE mandi_prices SET
+         min_price = $2, max_price = $3, modal_price = $4, arrivals_quantity = $5,
+         price_unit = $6, arrival_unit = $7, quality_flags = $8,
+         raw_payload = $9, fetched_at = COALESCE($10::timestamptz, CURRENT_TIMESTAMP),
+         last_seen_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP, ingestion_run_id = $11
+       WHERE id = $1`,
       [
-        record.commodity_code,
-        record.commodity_name,
-        record.commodity_category || 'Vegetables',
-        record.unit || 'quintal',
+        row.id, record.min_price, record.max_price, record.modal_price, record.arrivals_quantity,
+        record.price_unit, record.arrival_unit, record.quality_flags || [],
+        record.raw_payload === null || record.raw_payload === undefined ? null : JSON.stringify(record.raw_payload),
+        record.fetched_at, runId,
       ]
     );
+    return { outcome: 'updated', id: row.id };
+  }
 
-    const id = insertRes.rows[0].id;
-    this.commodityCache.set(record.commodity_code, id);
-    return id;
+  /** Records same-source conflicts found by the deduplicator (all versions kept in details). */
+  async #recordBatchConflicts(client, conflicts, runId) {
+    let stored = 0;
+    for (const conflict of conflicts || []) {
+      const versions = [...(conflict.discarded || []), conflict.kept].filter(Boolean);
+      const key = `SB:${conflict.key}:${versions.map(valueSignature).join('~')}`.slice(0, 400);
+      const res = await client.query(
+        `INSERT INTO mandi_price_conflicts (conflict_key, conflict_type, price_date, source_a, source_b,
+           modal_price_a, modal_price_b, details, ingestion_run_id)
+         VALUES ($1, 'SAME_SOURCE_CONFLICT', $2, $3, $3, $4, $5, $6, $7)
+         ON CONFLICT (conflict_key) DO NOTHING`,
+        [
+          key, conflict.kept?.price_date ?? null, conflict.source,
+          versions[0]?.modal_price ?? null, conflict.kept?.modal_price ?? null,
+          JSON.stringify({
+            observation: conflict.key,
+            resolution: 'latest report in source order kept',
+            versions: versions.map((v) => ({ ...Object.fromEntries(PRICE_FIELDS.map((f) => [f, v[f] ?? null])), raw_payload: v.raw_payload ?? null })),
+          }),
+          runId,
+        ]
+      );
+      stored += res.rowCount;
+    }
+    return stored;
+  }
+
+  /** Detects cross-source disagreements for the market-days touched by this batch. */
+  async #detectCrossSourceConflicts(client, priceIds, runId) {
+    if (!priceIds.length) return 0;
+    const res = await client.query(
+      `WITH touched AS (
+         SELECT DISTINCT mandi_id, commodity_id, price_date FROM mandi_prices WHERE id = ANY($1::int[])
+       ), rows AS (
+         SELECT mp.*, COUNT(*) OVER (PARTITION BY mp.mandi_id, mp.commodity_id, mp.price_date, mp.source) AS rows_in_source
+         FROM mandi_prices mp JOIN touched t USING (mandi_id, commodity_id, price_date)
+       ), pairs AS (
+         SELECT a.id AS id_a, b.id AS id_b, a.mandi_id, a.commodity_id, a.price_date,
+                a.source AS source_a, b.source AS source_b, a.modal_price AS modal_a, b.modal_price AS modal_b,
+                a.variety AS variety_a, b.variety AS variety_b
+         FROM rows a JOIN rows b
+           ON a.mandi_id = b.mandi_id AND a.commodity_id = b.commodity_id AND a.price_date = b.price_date
+          AND a.source < b.source
+         WHERE (lower(a.variety) IS NOT DISTINCT FROM lower(b.variety))
+            OR (a.variety IS NULL AND b.rows_in_source = 1)
+            OR (b.variety IS NULL AND a.rows_in_source = 1)
+       )
+       INSERT INTO mandi_price_conflicts (conflict_key, conflict_type, mandi_id, commodity_id, price_date,
+         price_id_a, price_id_b, source_a, source_b, modal_price_a, modal_price_b, details, ingestion_run_id)
+       SELECT 'XS:' || id_a || ':' || id_b || ':' || modal_a || ':' || modal_b, 'CROSS_SOURCE_CONFLICT',
+              mandi_id, commodity_id, price_date, id_a, id_b, source_a, source_b, modal_a, modal_b,
+              jsonb_build_object('variety_a', variety_a, 'variety_b', variety_b, 'tolerance', $2::numeric,
+                                 'resolution', 'both rows kept; mandi_prices_resolved uses source precedence'),
+              $3
+       FROM pairs
+       WHERE abs(modal_a - modal_b) / GREATEST(LEAST(modal_a, modal_b), 1) > $2::numeric
+       ON CONFLICT (conflict_key) DO NOTHING`,
+      [priceIds, this.conflictTolerance, runId]
+    );
+    return res.rowCount;
   }
 
   /**
-   * Persists a batch of normalized records into PostgreSQL
-   * @param {Array<Object>} records - Normalized, deduplicated records
-   * @returns {Promise<{ inserted: number, updated: number, failed: number }>}
+   * Persists normalised, validated, de-duplicated records in one transaction.
+   * @returns {Promise<{inserted:number, updated:number, unchanged:number, failed:number,
+   *   conflicts:number, errors:Array<{key:string, message:string}>}>}
    */
-  async persistBatch(records) {
-    if (!records || records.length === 0) {
-      return { inserted: 0, updated: 0, failed: 0 };
-    }
+  async persistBatch(records, { runId = null, batchConflicts = [] } = {}) {
+    const result = { inserted: 0, updated: 0, unchanged: 0, failed: 0, conflicts: 0, errors: [] };
+    if ((!records || records.length === 0) && !batchConflicts.length) return result;
+    if (!this.allowSampleData && (records || []).some((r) => r.is_sample_data)) throw new SampleDataWriteError();
 
-    const client = await pool.connect();
-    let inserted = 0;
-    let updated = 0;
-    let failed = 0;
-
+    const client = await this.pool.connect();
+    const mandiIds = new Map();
+    const commodityIds = new Map();
+    const touched = [];
     try {
       await client.query('BEGIN');
-      await this.refreshCaches(client);
-
-      for (const record of records) {
+      for (const record of records || []) {
+        await client.query('SAVEPOINT record_write');
         try {
-          const mandiId = await this.ensureMandi(client, record);
-          const commodityId = await this.ensureCommodity(client, record);
-
-          const upsertSql = `
-            INSERT INTO mandi_prices (
-              mandi_id, commodity_id, price_date,
-              min_price, max_price, modal_price,
-              arrivals_quantity, unit, variety, grade,
-              source, is_sample_data, raw_payload
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-            ON CONFLICT (mandi_id, commodity_id, price_date, variety, source)
-            DO UPDATE SET
-              min_price = EXCLUDED.min_price,
-              max_price = EXCLUDED.max_price,
-              modal_price = EXCLUDED.modal_price,
-              arrivals_quantity = EXCLUDED.arrivals_quantity,
-              updated_at = CURRENT_TIMESTAMP
-            RETURNING (xmax = 0) AS is_insert;
-          `;
-
-          const res = await client.query(upsertSql, [
-            mandiId,
-            commodityId,
-            record.price_date,
-            record.min_price,
-            record.max_price,
-            record.modal_price,
-            record.arrivals_quantity,
-            record.unit,
-            record.variety,
-            record.grade,
-            record.source,
-            record.is_sample_data,
-            record.raw_payload ? JSON.stringify(record.raw_payload) : null,
-          ]);
-
-          if (res.rows[0].is_insert) {
-            inserted++;
-          } else {
-            updated++;
-          }
-        } catch (recordErr) {
-          console.error(`[Persister] Failed to persist record (${record.mandi_code}, ${record.commodity_code}, ${record.price_date}):`, recordErr.message);
-          failed++;
+          const mandiId = await this.#ensureMandi(client, record, mandiIds);
+          const commodityId = await this.#ensureCommodity(client, record, commodityIds);
+          const { outcome, id } = await this.#upsertPrice(client, record, mandiId, commodityId, runId);
+          await client.query('RELEASE SAVEPOINT record_write');
+          // Ids are cached only after the savepoint is released, so a rolled-back
+          // insert can never leave a dangling id behind.
+          mandiIds.set(record.mandi_code, mandiId);
+          commodityIds.set(record.commodity_code, commodityId);
+          result[outcome] += 1;
+          if (outcome !== 'unchanged') touched.push(id);
+        } catch (err) {
+          await client.query('ROLLBACK TO SAVEPOINT record_write');
+          result.failed += 1;
+          result.errors.push({ key: observationKey(record), message: safeMessage(err) });
         }
       }
-
+      result.conflicts += await this.#recordBatchConflicts(client, batchConflicts, runId);
+      result.conflicts += await this.#detectCrossSourceConflicts(client, touched, runId);
       await client.query('COMMIT');
-    } catch (txErr) {
-      await client.query('ROLLBACK');
-      console.error('[Persister] Transaction rollback during batch persistence:', txErr.message);
-      throw txErr;
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw err;
     } finally {
       client.release();
     }
 
-    return { inserted, updated, failed };
-  }
-
-  /**
-   * Logs pipeline sync execution audit
-   */
-  async logSync(auditData) {
-    try {
-      await pool.query(
-        `INSERT INTO pipeline_sync_logs (
-          source, status, records_fetched, records_valid,
-          records_inserted, records_updated, records_rejected,
-          error_details, execution_time_ms
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [
-          auditData.source || 'UNKNOWN',
-          auditData.status || 'SUCCESS',
-          auditData.records_fetched || 0,
-          auditData.records_valid || 0,
-          auditData.records_inserted || 0,
-          auditData.records_updated || 0,
-          auditData.records_rejected || 0,
-          auditData.error_details || null,
-          auditData.execution_time_ms || 0,
-        ]
-      );
-    } catch (err) {
-      console.error('[Persister] Failed to write pipeline sync log:', err.message);
+    // Cross-check: rows written by this run must exist after commit.
+    if (runId !== null && result.inserted + result.updated > 0) {
+      const check = await this.pool.query('SELECT COUNT(*)::int AS n FROM mandi_prices WHERE ingestion_run_id = $1', [runId]);
+      if (check.rows[0].n < result.inserted + result.updated) {
+        throw new PersistenceIntegrityError(
+          `Run ${runId} reported ${result.inserted + result.updated} written rows but ${check.rows[0].n} are committed`
+        );
+      }
     }
+    return result;
   }
 }
 
-export default new MandiPersister();
+export default MandiPersister;

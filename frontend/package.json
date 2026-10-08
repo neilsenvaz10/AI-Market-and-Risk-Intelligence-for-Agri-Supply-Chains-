@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:i18n": "node scripts/check-i18n.mjs"
   },
   "dependencies": {
     "firebase": "^12.19.0",

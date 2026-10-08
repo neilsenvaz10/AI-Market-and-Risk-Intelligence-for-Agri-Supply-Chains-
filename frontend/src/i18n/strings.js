@@ -332,6 +332,12 @@ const STRINGS = {
     'mandiFeed.sampleSource': 'Sample feed (not real market prices)',
     'mandiFeed.vsPrevious': 'vs previous',
     'mandiFeed.notReported': 'Not reported',
+    'mandiFeed.noEarlierReport': 'No earlier report',
+    'unit.tonne': 'tonnes',
+    'home.tile.reportedDate': 'Market report date',
+    'home.tile.reportedFetched': 'Report date · fetched {date}',
+    'home.tile.noMarketData': 'No market data yet',
+    'home.tile.feedUnavailable': 'Price feed unavailable',
   },
 
   /* ─────────────────────────────────────────────
@@ -658,6 +664,12 @@ const STRINGS = {
     'mandiFeed.sampleSource': 'नमूना फ़ीड (असली बाज़ार भाव नहीं)',
     'mandiFeed.vsPrevious': 'पिछले भाव से',
     'mandiFeed.notReported': 'दर्ज नहीं',
+    'mandiFeed.noEarlierReport': 'पिछला भाव उपलब्ध नहीं',
+    'unit.tonne': 'टन',
+    'home.tile.reportedDate': 'बाज़ार रिपोर्ट तारीख',
+    'home.tile.reportedFetched': 'रिपोर्ट तारीख · {date} को प्राप्त',
+    'home.tile.noMarketData': 'अभी बाज़ार डेटा नहीं',
+    'home.tile.feedUnavailable': 'भाव फ़ीड उपलब्ध नहीं',
   },
 
   /* ─────────────────────────────────────────────
@@ -984,6 +996,12 @@ const STRINGS = {
     'mandiFeed.sampleSource': 'नमुना फीड (खरे बाजारभाव नाहीत)',
     'mandiFeed.vsPrevious': 'मागील भावापेक्षा',
     'mandiFeed.notReported': 'नोंद नाही',
+    'mandiFeed.noEarlierReport': 'मागील भाव उपलब्ध नाही',
+    'unit.tonne': 'टन',
+    'home.tile.reportedDate': 'बाजार अहवाल दिनांक',
+    'home.tile.reportedFetched': 'अहवाल दिनांक · {date} ला मिळाले',
+    'home.tile.noMarketData': 'अद्याप बाजार माहिती नाही',
+    'home.tile.feedUnavailable': 'भाव फीड उपलब्ध नाही',
   },
 };
 

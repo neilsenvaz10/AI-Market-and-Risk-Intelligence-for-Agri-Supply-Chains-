@@ -109,120 +109,42 @@ All converted React pages faithfully mirror the Google Stitch design tokens (Bar
 
 ## 5. Phase 3 — Mandi Data Pipeline Architecture
 
-### Pipeline Data Flow
+### Pipeline data flow
 
 ```text
-+---------------------------------------------------------------+
-|                      Mandi Data Sources                       |
-|  - Data.gov.in / AGMARKNET API (AgmarknetGovProvider)         |
-|  - CEDA Ashoka University Historical 5-Yr (CedaProvider)      |
-|  - Verified Sample Reference Feed (MockMandiProvider)         |
-+---------------------------------------------------------------+
-                               |
-                               v (raw records)
-+---------------------------------------------------------------+
-|                      Step 2: Validation                       |
-|  - Required identity checks (mandi, commodity, date)          |
-|  - Numeric price bounds: min > 0, max >= min, min <= modal <= max
-|  - Date bounds: valid date, not future (> today + 1d)         |
-|  - Arrival bounds: arrivals >= 0                              |
-|  - Rejection logging with exact error attribution             |
-+---------------------------------------------------------------+
-                               |
-                               v (valid records)
-+---------------------------------------------------------------+
-|                 Step 3: Cleaning & Normalization              |
-|  - Commodity dictionary (Kanda, Pyaaz, Onion -> ONION)        |
-|  - Mandi dictionary (Gultekdi, Pune -> Pune APMC (Gultekdi))  |
-|  - Unit normalization (kg -> quintal x100, ton -> quintal /10)|
-|  - Date normalization (DD/MM/YYYY, ISO -> YYYY-MM-DD)         |
-+---------------------------------------------------------------+
-                               |
-                               v
-+---------------------------------------------------------------+
-|                    Step 4: Deduplication                      |
-|  - Within-source: (mandi, commodity, date, variety, source)   |
-|  - Cross-source: (mandi, commodity, date, variety) with       |
-|    source priority (DATA_GOV_IN > CEDA > MOCK)                |
-|  - Retains higher volume arrivals on tie                      |
-+---------------------------------------------------------------+
-                               |
-                               v
-+---------------------------------------------------------------+
-|                  Step 5: PostgreSQL Persistence               |
-|  - Auto-resolves / inserts mandis & commodities foreign keys  |
-|  - Idempotent upsert via ON CONFLICT DO UPDATE                |
-|  - Audit execution log in pipeline_sync_logs                  |
-+---------------------------------------------------------------+
-                               |
-             +-----------------+-----------------+
-             v                                   v
-+---------------------------+       +---------------------------+
-|    Express Backend API    |       |   Phase 4 ML Service      |
-|  GET /api/mandi/prices/*  |       |   Consumes historical     |
-|  GET /api/mandi/mandis    |       |   time-series from        |
-|  GET /api/mandi/quality/* |       |   /api/mandi/prices/history|
-|  Connected to React UI    |       |                           |
-+---------------------------+       +---------------------------+
+ Sources (one provider per run)
+   DATA_GOV_IN  data.gov.in "Current Daily Price ... (Mandi)" (DMI / AGMARKNET dataset)   current prices
+   CEDA         CEDA, Ashoka University Agmarknet API (Bearer token)                       2021-10-01..2026-09-30
+   MOCK         synthetic sample data — isolated tests only, refused unless allowed
+        |  raw records (+ raw payload, fetched_at)
+        v
+ 1. Normalise   exact identities (state, district, market) and commodity names, real calendar dates,
+                known units only (INR/quintal, tonne), missing values stay NULL, quality flags
+ 2. Validate    reject with reason codes: missing location/commodity/date/modal price, impossible or
+                future dates, min > max, modal outside range, unknown unit, sample/genuine mislabelling
+ 3. De-duplicate within source: identical -> collapse; different values -> keep latest, record conflict
+                across sources: never dropped here (provenance); overlaps classified
+ 4. Persist     one transaction, SAVEPOINT per row, idempotent upsert on
+                (source, mandi, commodity, date, variety, grade); revisions + conflicts recorded;
+                counts returned after COMMIT and checked against committed rows
+ 5. Log         pipeline_sync_logs (status, counts, rejection summary) + mandi_source_sync_state
 ```
 
-### Relational Schema Design
+Only one run executes at a time (PostgreSQL advisory lock). Price queries read `mandi_prices_resolved`,
+which keeps only the highest-precedence source for each market-day (DATA_GOV_IN > CEDA > MOCK), so
+sources are never summed together.
 
-1. **`mandis`**:
-   - `id SERIAL PRIMARY KEY`
-   - `code VARCHAR(64) UNIQUE NOT NULL`
-   - `name VARCHAR(128) NOT NULL`
-   - `hindi_name`, `marathi_name`
-   - `state VARCHAR(64) NOT NULL`, `district VARCHAR(64) NOT NULL`
-   - `market_center VARCHAR(128)`
-   - `latitude NUMERIC(9, 6)`, `longitude NUMERIC(9, 6)`
-   - `is_active BOOLEAN DEFAULT TRUE`
-   - `created_at`, `updated_at`
+### Tables (migrations 004 + 005)
+- `mandis`, `commodities` — canonical identities (codes built from full names; no substring merging)
+- `mandi_prices` — one row per source observation with `price_date` (reporting day), `fetched_at`,
+  source identifiers and original names, `price_unit`, `arrival_unit`, `quality_flags`, `raw_payload`;
+  `ON DELETE RESTRICT` towards mandis/commodities
+- `mandi_sources` — source registry (label, publisher, access method, precedence, terms)
+- `mandi_price_revisions`, `mandi_price_conflicts` — audit trail and review queue
+- `pipeline_sync_logs`, `mandi_source_sync_state` — run history and per-source freshness
 
-2. **`commodities`**:
-   - `id SERIAL PRIMARY KEY`
-   - `code VARCHAR(64) UNIQUE NOT NULL`
-   - `name VARCHAR(128) NOT NULL`
-   - `hindi_name`, `marathi_name`
-   - `category VARCHAR(64) DEFAULT 'Vegetables'`
-   - `standard_unit VARCHAR(32) DEFAULT 'quintal'`
-   - `is_active BOOLEAN DEFAULT TRUE`
-   - `created_at`, `updated_at`
-
-3. **`mandi_prices`**:
-   - `id SERIAL PRIMARY KEY`
-   - `mandi_id INTEGER REFERENCES mandis(id) ON DELETE CASCADE`
-   - `commodity_id INTEGER REFERENCES commodities(id) ON DELETE CASCADE`
-   - `price_date DATE NOT NULL`
-   - `min_price NUMERIC(10, 2) NOT NULL CHECK (min_price >= 0)`
-   - `max_price NUMERIC(10, 2) NOT NULL CHECK (max_price >= min_price)`
-   - `modal_price NUMERIC(10, 2) NOT NULL CHECK (modal_price >= min_price AND modal_price <= max_price)`
-   - `arrivals_quantity NUMERIC(12, 2) DEFAULT 0 CHECK (arrivals_quantity >= 0)`
-   - `unit VARCHAR(32) DEFAULT 'quintal'`
-   - `variety VARCHAR(64) DEFAULT 'Standard'`
-   - `grade VARCHAR(32) DEFAULT 'FAQ'`
-   - `source VARCHAR(64) NOT NULL`
-   - `is_sample_data BOOLEAN DEFAULT FALSE`
-   - `raw_payload JSONB`
-   - `created_at`, `updated_at`
-   - `UNIQUE (mandi_id, commodity_id, price_date, variety, source)`
-   - Composite index: `(commodity_id, mandi_id, price_date DESC)`
-
-4. **`pipeline_sync_logs`**:
-   - `id SERIAL PRIMARY KEY`
-   - `source VARCHAR(64) NOT NULL`
-   - `status VARCHAR(32) NOT NULL`
-   - `records_fetched INTEGER`, `records_valid INTEGER`, `records_inserted INTEGER`, `records_updated INTEGER`, `records_rejected INTEGER`
-   - `error_details TEXT`
-   - `execution_time_ms INTEGER`
-   - `synced_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP`
-
-### Provider Architecture
-
-- **`BaseMandiProvider`**: Abstract base class requiring `getName()` and `fetchRecords(options)`.
-- **`MockMandiProvider`**: Deterministic, verified multi-day reference dataset (14+ days) across 6 core Maharashtra mandis (Pune, Nashik, Ahmednagar, Baramati, Mumbai Vashi, Lasalgaon) and 6 commodities (Onion, Tomato, Potato, Soybean, Wheat, Cotton). Explicitly sets `is_sample_data: true`.
-- **`AgmarknetGovProvider`**: Multi-page live adapter for Data.gov.in / AGMARKNET resource API (`https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070`). Includes 500-record batching, rate limiting (300ms pause), 15s abort controller timeouts, date-range filtering, and graceful fallback when unconfigured.
-- **`CedaProvider`**: Historical adapter for Centre for Economic Data and Analysis (Ashoka University) covering 2,700+ mandis for the 2021-10-01 to 2026-09-30 5-year historical period. Enforces batch safety caps (max 10,000 rows) and graceful fallback when credentials are absent.
-
-### Automated Background Scheduler
-`server.js` initializes a recurring sync interval (`MANDI_SYNC_INTERVAL_MINUTES`, default: 60) with an initial 30s grace delay, logging sync results to `pipeline_sync_logs` and safely stopping on `SIGTERM` / `SIGINT`.
+### Operation
+- Scheduler: off unless `MANDI_SYNC_INTERVAL_MINUTES` is 15–10080 and the provider is `DATA_GOV_IN`.
+- `POST /api/mandi/sync`: rate limit → Firebase auth (401) → authorisation (403 until an admin role is approved).
+- Operators: `npm run mandi:sync` and `npm run ceda:export` (gzip CSV, checkpoint manifest, resume,
+  disk-space guard and download budget); database writes require `--confirm-db=<DB_NAME>`.

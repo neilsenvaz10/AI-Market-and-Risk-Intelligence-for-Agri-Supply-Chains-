@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { translateLocation } from '../constants/profile';
 import { t } from '../i18n/strings';
 import { getLatestMandiPrices } from '../services/api';
+import { formatReportDate, formatTrend, hasTrend, sourceLabel } from '../utils/mandiFeed';
 
 // Translated names for the seeded mandis; other mandis use the name from the API
 const MANDI_NAME_KEYS = {
@@ -13,35 +14,17 @@ const MANDI_NAME_KEYS = {
   MH_BAR_APMC: 'mandis.baramatiName',
 };
 
-const SOURCE_LABELS = {
-  DATA_GOV_IN: 'AGMARKNET / data.gov.in',
-  AGMARKNET: 'AGMARKNET / data.gov.in',
-  CEDA: 'CEDA (Ashoka University)',
-};
-
-const DATE_LOCALES = { en: 'en-IN', hi: 'hi-IN', mr: 'mr-IN' };
-
 const TREND_CHIP_STYLES = {
   up: 'bg-secondary-container text-on-secondary-container',
   down: 'bg-error-container text-error',
   stable: 'bg-surface-container-high text-on-surface-variant',
 };
 
-const formatReportDate = (value, language) => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString(DATE_LOCALES[language] || 'en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-};
-
-// Arrivals are optional in source feeds (stored as 0 when missing), so 0 means "not reported"
-const arrivalKey = (quantity) => {
-  const value = Number(quantity);
-  if (!(value > 0)) return 'mandiFeed.notReported';
-  if (value > 600) return 'mandis.volume.veryHigh';
-  if (value > 350) return 'mandis.volume.high';
-  if (value > 200) return 'mandis.volume.moderate';
-  return 'mandis.volume.medium';
-};
+// Arrivals are shown as reported (tonnes); missing arrivals are null and shown as "not reported".
+const formatArrivals = (row, language) =>
+  row.arrivals_quantity === null || row.arrivals_quantity === undefined
+    ? t(language, 'mandiFeed.notReported')
+    : `${Number(row.arrivals_quantity).toLocaleString('en-IN', { maximumFractionDigits: 1 })} ${t(language, 'unit.tonne')}`;
 
 export default function MandisPage() {
   const { language } = useAuth();
@@ -128,10 +111,6 @@ export default function MandisPage() {
       <div className="flex flex-col gap-3">
         {feed.rows.map((mandi) => {
           const nameKey = MANDI_NAME_KEYS[mandi.mandi_code];
-          const trendPercent = Number(mandi.trend_percent) || 0;
-          const source = mandi.is_sample_data
-            ? t(language, 'mandiFeed.sampleSource')
-            : SOURCE_LABELS[mandi.source] || mandi.source;
 
           return (
             <div key={mandi.id} className="bg-surface-container-lowest p-4 rounded-xl shadow-sm border border-outline-variant/30 flex flex-col gap-2">
@@ -139,15 +118,20 @@ export default function MandisPage() {
                 <span className="font-bold text-on-surface text-body-lg">
                   {nameKey ? t(language, nameKey) : mandi.mandi_name}
                 </span>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${TREND_CHIP_STYLES[mandi.trend_direction] || TREND_CHIP_STYLES.stable}`}>
-                  {trendPercent > 0 ? '+' : ''}{trendPercent}% {t(language, 'mandiFeed.vsPrevious')}
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${hasTrend(mandi) ? TREND_CHIP_STYLES[mandi.trend_direction] : TREND_CHIP_STYLES.stable}`}>
+                  {hasTrend(mandi) ? `${formatTrend(mandi)} ${t(language, 'mandiFeed.vsPrevious')}` : t(language, 'mandiFeed.noEarlierReport')}
                 </span>
               </div>
+              {(mandi.variety || mandi.grade) && (
+                <span className="text-xs text-on-surface-variant -mt-1">
+                  {[mandi.variety, mandi.grade].filter(Boolean).join(' · ')}
+                </span>
+              )}
               <div className="flex items-baseline justify-between">
                 <div>
                   <span className="text-body-sm text-on-surface-variant">{t(language, 'mandis.modalPrice')}</span>
                   <div className="font-headline-md text-headline-md text-primary">
-                    ₹{Number(mandi.modal_price).toLocaleString('en-IN')} / {t(language, mandi.unit === 'kg' ? 'unit.kg' : 'unit.quintal')}
+                    ₹{Number(mandi.modal_price).toLocaleString('en-IN')} / {t(language, 'unit.quintal')}
                   </div>
                 </div>
                 <div className="text-right">
@@ -156,14 +140,14 @@ export default function MandisPage() {
                     {translateLocation(`${mandi.district}, ${mandi.state}`, language)}
                   </span>
                   <span className="block text-xs font-medium text-secondary">
-                    {t(language, 'mandis.arrival')}: {t(language, arrivalKey(mandi.arrivals_quantity))}
+                    {t(language, 'mandis.arrival')}: {formatArrivals(mandi, language)}
                   </span>
                 </div>
               </div>
               <p className="text-xs text-on-surface-variant">
                 {t(language, 'mandiFeed.reported', { date: formatReportDate(mandi.price_date, language) })}
                 {' · '}
-                {t(language, 'mandiFeed.source', { source })}
+                {t(language, 'mandiFeed.source', { source: sourceLabel(mandi, language) })}
               </p>
               <Link
                 to="/recommendation"

@@ -54,6 +54,39 @@ export function isFirebaseAdminReady() {
 }
 
 /**
+ * True when the Admin SDK can make privileged calls (getUser, setCustomUserClaims, ...):
+ * a service account (file or inline fields) or the local Auth Emulator. A bare
+ * FIREBASE_PROJECT_ID is enough to verify ID tokens but NOT for these calls.
+ */
+export function hasPrivilegedFirebaseAccess() {
+  const { projectId, serviceAccountPath, clientEmail, privateKey, authEmulatorHost } = config.firebase;
+  return Boolean(serviceAccountPath || (clientEmail && privateKey && projectId) || authEmulatorHost);
+}
+
+function adminError(code, message) {
+  return Object.assign(new Error(message), { code });
+}
+
+/**
+ * Returns the Admin SDK Auth instance for privileged operations, or throws
+ * 'auth/not-configured' / 'auth/admin-credentials-missing'. Never returns a
+ * half-configured instance, so callers fail closed.
+ */
+export function getFirebaseAdminAuth() {
+  initFirebaseAdmin();
+  if (!authInstance) throw adminError('auth/not-configured', 'Firebase Admin is not configured');
+  if (!hasPrivilegedFirebaseAccess()) {
+    throw adminError('auth/admin-credentials-missing', 'Firebase Admin has no service account for privileged calls');
+  }
+  return authInstance;
+}
+
+/** Live account record (customClaims, disabled, ...) — the authoritative source for admin checks. */
+export async function getFirebaseUserRecord(uid) {
+  return getFirebaseAdminAuth().getUser(uid);
+}
+
+/**
  * Verifies a Firebase ID token and returns the decoded claims.
  * Throws an error with code 'auth/not-configured' when Firebase Admin is unavailable.
  */

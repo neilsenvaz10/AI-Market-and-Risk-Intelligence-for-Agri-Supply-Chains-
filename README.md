@@ -8,7 +8,7 @@ FASALYTICS is an AI-powered agricultural market intelligence and decision-suppor
 
 - **Mobile-First Farmer Experience**: Responsive design adhering to Google Stitch agricultural design tokens.
 - **Farmer Authentication & Profiles (Phase 2)**: Secure multi-factor authentication (email/password, Google, one-time phone OTP verification) and PostgreSQL farmer profiles.
-- **Mandi Data Pipeline (Phase 3)**: Complete end-to-end data ingestion, validation, normalization, and deduplication for Indian agricultural markets.
+- **Mandi Data Pipeline (Phase 3)**: Ingestion, normalisation, validation, de-duplication and PostgreSQL storage for Indian mandi prices from data.gov.in (Agmarknet dataset) and CEDA (Ashoka University). Live source verification is pending API keys — see section 16 and `docs/verification/phase-3-recovery-report.md`.
 - **Modular Microservices**: React + Vite frontend, Node.js + Express backend, PostgreSQL database, and FastAPI ML service.
 - **Multilingual Support**: Tailored for Marathi (मराठी), Hindi (हिन्दी), and English.
 
@@ -38,8 +38,8 @@ FASALYTICS is an AI-powered agricultural market intelligence and decision-suppor
 - Pydantic data modeling
 
 ### Database & Infrastructure
-- **PostgreSQL 16+** (Local service or Docker container)
-- **Docker Compose** for containerized database management
+- **PostgreSQL 15+** (local installation managed with pgAdmin 4; tested on PostgreSQL 18.2)
+- **Docker Compose** (optional alternative; not required for local development)
 
 ---
 
@@ -71,14 +71,16 @@ AI-Market-and-Risk-Intelligence-for-Agri-Supply-Chains-/
 ├── docs/
 │   ├── architecture.md
 │   ├── authentication.md
-│   └── PHASE3_SOURCE_ACCESS.md
+│   ├── PHASE3_SOURCE_ACCESS.md
+│   └── verification/        (audit, recovery report, live-test plan)
 ├── database/
 │   ├── schema.sql
 │   ├── seed.sql
 │   └── migrations/
 │       ├── 002_phase2_farmers.sql
 │       ├── 003_phase2_email_identity.sql
-│       └── 003_mandi_data_pipeline.sql
+│       ├── 004_mandi_data_pipeline.sql
+│       └── 005_mandi_pipeline_integrity.sql
 ├── frontend/
 │   ├── index.html
 │   ├── package.json
@@ -126,18 +128,24 @@ AI-Market-and-Risk-Intelligence-for-Agri-Supply-Chains-/
 │   │   │   ├── health.routes.js
 │   │   │   └── mandi.routes.js
 │   │   ├── middleware/
-│   │   │   ├── auth.js
+│   │   │   ├── auth.js               (Firebase ID-token verification)
+│   │   │   ├── ingestionAuth.js      (admin custom-claim check for POST /api/mandi/sync)
+│   │   │   ├── rateLimit.js
 │   │   │   └── errorHandler.js
+│   │   ├── admin/
+│   │   │   └── adminClaim.js         (grant/revoke logic, used only by the operator script)
 │   │   ├── pipeline/
 │   │   │   ├── providers/
 │   │   │   │   ├── base.provider.js
-│   │   │   │   ├── mock.provider.js
-│   │   │   │   ├── agmarknet.provider.js
+│   │   │   │   ├── mock.provider.js          (synthetic data, tests only)
+│   │   │   │   ├── data-gov-in.provider.js
 │   │   │   │   └── ceda.provider.js
+│   │   │   ├── historical/                   (CEDA export: gzip CSV, manifest, disk guard)
 │   │   │   ├── validator.js
 │   │   │   ├── normalizer.js
 │   │   │   ├── deduplicator.js
 │   │   │   ├── persister.js
+│   │   │   ├── http.js · scheduler.js · trace.js
 │   │   │   └── index.js
 │   │   ├── services/
 │   │   │   ├── email/
@@ -147,13 +155,9 @@ AI-Market-and-Risk-Intelligence-for-Agri-Supply-Chains-/
 │   │   ├── db.js
 │   │   ├── app.js
 │   │   └── server.js
-│   ├── test/
-│   │   ├── validator.test.js
-│   │   ├── normalizer.test.js
-│   │   ├── deduplicator.test.js
-│   │   ├── ceda.test.js
-│   │   ├── pipeline.test.js
-│   │   └── api.test.js
+│   ├── scripts/                          (migrate, mandi-sync, ceda-export, firebase-admin-claim, live-*, trace-record, test-db)
+│   ├── test/                             (database-free unit tests)
+│   │   └── db/                           (run only inside a disposable database: npm run test:db)
 │   └── tests/
 │       ├── farmers.api.test.js
 │       ├── firebase-emulator.test.js
@@ -173,7 +177,7 @@ AI-Market-and-Risk-Intelligence-for-Agri-Supply-Chains-/
 |------|---------|------------|
 | **Node.js** | v18+ (tested on Node 22/24 & npm 10/11) | Frontend and Backend |
 | **Python** | v3.10+ (tested on Python 3.12) | FastAPI ML service |
-| **PostgreSQL** | v14+ (tested on PostgreSQL 16) | Database service or via Docker |
+| **PostgreSQL** | v15+ (tested on PostgreSQL 18.2) | Local install + pgAdmin 4 (Docker optional) |
 | **PowerShell** | Windows default terminal | Commands and scripts |
 
 ---
@@ -211,10 +215,11 @@ Copy-Item backend\.env.example backend\.env
 Copy-Item ml-service\.env.example ml-service\.env
 ```
 
-### Supported Mandi Data Providers in `backend/.env`:
-- **`MOCK`** (default): Deterministic, verified sample dataset for development and CI testing.
-- **`AGMARKNET`**: Live daily arrivals from Indian Open Government Data portal (`data.gov.in`). Requires `DATA_GOV_IN_API_KEY`.
-- **`CEDA`**: Historical arrivals & prices (2021-10-01 to 2026-09-30) from Centre for Economic Data and Analysis (Ashoka University). Requires `CEDA_API_KEY`.
+### Mandi data settings in `backend/.env`
+Defaults are safe: no provider, scheduler off, no sample-data writes.
+- **`MANDI_DATA_PROVIDER`**: empty (none, default) · `DATA_GOV_IN` (current daily prices from data.gov.in, needs `DATA_GOV_IN_API_KEY`) · `CEDA` (historical Agmarknet data from CEDA, Ashoka University, needs `CEDA_API_KEY`). `AGMARKNET` is accepted as a deprecated alias of `DATA_GOV_IN`.
+- **`MANDI_SYNC_INTERVAL_MINUTES`**: `0` = off (keep it at 0 until live ingestion is approved). Only whole numbers 15–10080 enable it, and only `DATA_GOV_IN` can be scheduled.
+- **`MOCK`** generates **synthetic** prices for isolated tests only. It is refused unless `MANDI_ALLOW_SAMPLE_DATA=true` (never in production).
 
 ---
 
@@ -253,25 +258,20 @@ Without a provider, registration still completes: the welcome email is recorded 
 
 ## 10. Database Setup & Migrations
 
-### Option A — Docker Compose
-```powershell
-docker compose --env-file backend/.env up -d postgres
-```
-
-### Option B — Local PostgreSQL
-```powershell
-psql -U postgres -c "CREATE DATABASE fasalytics;"
-psql -U postgres -d fasalytics -f database/schema.sql
-psql -U postgres -d fasalytics -f database/seed.sql
-```
-
-### Apply Migrations
+### Local PostgreSQL with pgAdmin 4 (recommended)
+1. Install PostgreSQL 15+ (it includes pgAdmin 4) and keep the service running on `localhost:5432`.
+2. In pgAdmin: *Servers → PostgreSQL → Databases → Create → Database…*, name it `fasalytics` (or run `npm run migrate -- --create-database` from `backend`, which only creates it when missing).
+3. Put the connection settings in `backend/.env` (`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`). Never hard-code credentials in scripts.
+4. Apply the schema through the migration runner (it creates every table the backend needs — `schema.sql`/`seed.sql` are not required):
 ```powershell
 cd backend
-npm run migrate
-cd ..
+npm run migrate:status   # read-only: lists applied and pending migrations
+npm run migrate          # applies pending migrations, each in its own transaction
 ```
-This applies all migrations in `database/migrations/` sequentially (`002_phase2_farmers.sql`, `003_phase2_email_identity.sql`, `003_mandi_data_pipeline.sql`).
+Migrations: `002_phase2_farmers.sql`, `003_phase2_email_identity.sql`, `004_mandi_data_pipeline.sql`, `005_mandi_pipeline_integrity.sql`. Numbers must be unique; the runner refuses duplicates and uses a lock so two runs cannot overlap. A database that recorded the old `003_mandi_data_pipeline.sql` is upgraded safely by 004/005.
+
+### Optional — Docker Compose
+`docker-compose.yml` is kept as an optional alternative (PostgreSQL 16 container that loads `schema.sql`, `seed.sql` and migration 002 on first start). It is not used for local development; run `npm run migrate` against it afterwards if you use it.
 
 ---
 
@@ -311,7 +311,8 @@ Invoke-RestMethod http://localhost:8000/health                # ML service direc
 | `DATABASE_NOT_MIGRATED` | Run `cd backend; npm run migrate`. |
 | Port 5000 unavailable on Windows | Server automatically falls back to 5001; set `VITE_API_URL=http://localhost:5001`. |
 | Firebase Auth NOT CONFIGURED | Set `FIREBASE_PROJECT_ID` in `backend/.env`. |
-| data.gov.in connection timeout | Documented network egress limitation; pipeline safely defaults to `MOCK` provider. |
+| data.gov.in connection refused / timeout | `api.data.gov.in` is not reachable from some networks. The run is recorded as FAILED; no sample data is substituted. Try another network. |
+| Mandi API returns 503 `DATABASE_NOT_MIGRATED` | Apply the pending migrations (`npm run migrate`, after review). |
 
 ---
 
@@ -356,75 +357,47 @@ Phase 2 adds Firebase Authentication, multi-method registration (email/password,
 
 ## 16. Phase 3 — Mandi Data Pipeline
 
-Phase 3 provides end-to-end data ingestion, validation, normalization, deduplication, and PostgreSQL persistence for Indian agricultural market prices and arrivals.
+> **Status:** code repaired and tested against isolated databases; **live source verification is BLOCKED** (no CEDA / data.gov.in API keys, and `api.data.gov.in` refuses connections from the development network). No genuine mandi record has been ingested yet. Details: `docs/verification/phase-3-recovery-report.md`.
 
-### 16.1 Supported Providers
-- **`MOCK`**: High-fidelity deterministic reference dataset for 6 Maharashtra mandis and 6 commodities. Marked with `is_sample_data: true`.
-- **`AGMARKNET`**: Live adapter for data.gov.in / Agmarknet API (`https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070`). Features multi-page pagination (500 records/page), 300ms throttling, and date filters.
-- **`CEDA`**: Historical adapter for Centre for Economic Data and Analysis (Ashoka University) covering the **2021-10-01 to 2026-09-30** baseline period. Enforces batch safety caps (max 10,000 records).
+### 16.1 Sources
+| Code | Source | Access | Notes |
+|------|--------|--------|-------|
+| `DATA_GOV_IN` | data.gov.in — "Current Daily Price of Various Commodities from Various Markets (Mandi)", DMI, generated through AGMARKNET | OGD API resource `9ef84268-d588-465a-a308-a864a43d0070`, `DATA_GOV_IN_API_KEY` | Current prices; never labelled as fetched directly from agmarknet.gov.in (no documented API there) |
+| `CEDA` | CEDA, Ashoka University (Agmarknet data) | `https://api.ceda.ashoka.edu.in/v1` — `GET /agmarknet/commodities`, `GET /agmarknet/geographies`, `POST /agmarknet/markets`, `POST /agmarknet/prices`, `POST /agmarknet/quantities`; Bearer token `CEDA_API_KEY` | Historical window 2021-10-01..2026-09-30; prices ₹/quintal, quantities tonnes; non-commercial use with attribution |
+| `MOCK_PROVIDER` | Synthetic sample data | generated locally | Isolated tests only; always `is_sample_data = true` |
 
-### 16.2 Deduplication Architecture
-- **Within-Source Deduplication**: Resolves collisions on `(mandi, commodity, date, variety, source)`, keeping the record with higher arrivals volume.
-- **Cross-Source Deduplication** (`crossSource: true`): Resolves multi-source collisions on `(mandi, commodity, date, variety)` using priority ranking:
-  `DATA_GOV_IN` (40) = `AGMARKNET` (40) > `CEDA` (30) > `MOCK` (10).
+### 16.2 Data integrity rules
+- Pipeline: fetch → normalise → validate → de-duplicate → persist (per-row savepoints) → conflict detection → run log.
+- Exact identities only (no substring matching): "Sweet Potato" ≠ Potato, "Pune(Moshi)" ≠ Pune. Missing state/district/market, invalid dates (e.g. 31/02/2026), unknown units and missing modal prices are **rejected with a reason code**, never guessed. Missing min/max prices and arrivals stay `NULL`.
+- Every row keeps its source code, original names/ids, units (`INR/quintal`, `tonne`), quality flags, reporting date (`price_date`) and fetch time (`fetched_at`).
+- One row per source observation; other sources keep their own rows. `mandi_prices_resolved` returns one source per market-day (precedence DATA_GOV_IN > CEDA > MOCK), so sources are never double-counted. Disagreements go to `mandi_price_conflicts`; same-source revisions to `mandi_price_revisions`.
 
-### 16.3 Automated Background Sync Scheduler
-`server.js` initiates an automated background sync interval (`MANDI_SYNC_INTERVAL_MINUTES`, default: 60) with an initial 30s delay, logging sync results to `pipeline_sync_logs` and clearing timers on shutdown.
-
-### 16.4 Running the Test Suite
-The automated test suite runs **43 unit and integration tests** (100% passing):
-
+### 16.3 Ingestion (operators only)
+`POST /api/mandi/sync` is rate-limited (429), requires a Firebase login (401) and an account that holds the Firebase **custom claim `admin: true`** (403) — see "Administrator claim" in `docs/authentication.md`. The claim is confirmed live through the Firebase Admin SDK, so the server needs a service account (`FIREBASE_SERVICE_ACCOUNT_PATH`); without one the endpoint answers 503 and never ingests. **No account holds the claim yet.** Operators can also use the CLI, which needs direct database access and writes only with `--confirm-db=<DB_NAME>`:
 ```powershell
-node --test `
-  "backend/test/validator.test.js" `
-  "backend/test/normalizer.test.js" `
-  "backend/test/deduplicator.test.js" `
-  "backend/test/ceda.test.js" `
-  "backend/test/pipeline.test.js" `
-  "backend/test/api.test.js"
+cd backend
+npm run mandi:sync -- --provider=DATA_GOV_IN --days=3 --confirm-db=fasalytics
+npm run ceda:export -- --commodity=Onion --state=Maharashtra --district=Nashik --from=2026-09-01 --to=2026-09-30 --max-tasks=1
+npm run ceda:export -- --import-manifest=data/mandi/<manifest>.json --confirm-db=fasalytics
 ```
+The claim is granted and revoked only by the operator script `npm run admin:claim` (dry run by default; `--apply --confirm-project=<id>` to change anything).
 
-To run teammate authentication tests against PostgreSQL:
+`ceda:export` writes gzip CSV + raw responses + a checkpoint manifest under `backend/data/mandi` (git-ignored), resumes finished windows, and stops on low disk space (`MANDI_MIN_FREE_DISK_GB`, default 20) or when the download budget (`MANDI_DOWNLOAD_BUDGET_MB`, default 500) is reached.
+
+The scheduler is off unless `MANDI_SYNC_INTERVAL_MINUTES` is 15–10080 **and** `MANDI_DATA_PROVIDER=DATA_GOV_IN`; runs never overlap (advisory lock) and re-read a 3-day lookback for late reports.
+
+### 16.4 API
+`GET /api/mandi/mandis`, `/mandis/:id`, `/prices/latest`, `/prices/history`, `/commodities`, `/sync/status`, `/quality/report` — invalid input returns 400, an unmigrated database 503. Price rows include `price_date`, `fetched_at`, `source`, `source_label` and `is_sample_data`; `/prices/latest` adds a `meta` freshness summary. `/prices/history` returns the most recent `limit` rows (oldest-first by default, `order=desc` for newest-first) with `offset` paging.
+
+### 16.5 Tests
 ```powershell
-npm --prefix backend test:auth
+cd backend
+npm run test:unit   # no database needed
+npm run test:db     # creates a disposable fasalytics_test_* database, migrates, runs DB + Phase 2 suites, drops it
+cd ../frontend
+npm run check:i18n  # every translation key exists in en/hi/mr
 ```
-
-### 16.5 Triggering Ingestion via API (PowerShell)
-```powershell
-# Bounded sync using MOCK provider
-Invoke-RestMethod -Method POST http://localhost:5000/api/mandi/sync `
-  -ContentType "application/json" `
-  -Body '{"provider": "MOCK", "days": 7, "limit": 50}'
-
-# Fetch Data Quality & Storage Safety Audit Report
-Invoke-RestMethod http://localhost:5000/api/mandi/quality/report
-
-# Inspect pipeline sync audit status
-Invoke-RestMethod http://localhost:5000/api/mandi/sync/status
-
-# Retrieve latest prices with trends for Onion
-Invoke-RestMethod "http://localhost:5000/api/mandi/prices/latest?commodity=ONION"
-```
-
-### 16.6 Phase 3 Completion Checklist
-- [x] Mandi Data Provider abstraction (`BaseMandiProvider`, `MockMandiProvider`, `AgmarknetGovProvider`, `CedaProvider`).
-- [x] Clear metadata labeling: verified sample records marked with `is_sample_data: true`.
-- [x] Database migration (`database/migrations/003_mandi_data_pipeline.sql`).
-- [x] Relational tables: `mandis`, `commodities`, `mandi_prices`, `pipeline_sync_logs`.
-- [x] Validation module (`validator.js`) enforcing price bounds and integrity.
-- [x] Normalization module (`normalizer.js`) standardizing crop names, mandi codes, units, and dates.
-- [x] Within-source and cross-source deduplication (`deduplicator.js`) with source priority hierarchy.
-- [x] Transactional PostgreSQL persistence with idempotent upsert (`persister.js`).
-- [x] CEDA historical provider (`ceda.provider.js`) for the 2021-10-01 to 2026-09-30 period with storage safety caps.
-- [x] Multi-page pagination and rate throttling in AGMARKNET provider (`agmarknet.provider.js`).
-- [x] Source access investigation report (`docs/PHASE3_SOURCE_ACCESS.md`).
-- [x] Background sync scheduler in `server.js` (`MANDI_SYNC_INTERVAL_MINUTES`).
-- [x] Express REST API endpoints including data quality report (`/api/mandi/quality/report`).
-- [x] Connected frontend React UI (`MandisPage.jsx`, `HomePage.jsx`, `api.js`) to live mandi data while preserving Stitch aesthetic.
-- [x] Automated Node.js test suite passing 43/43 tests (100%).
-- [x] Verified frontend production build (`npm run build`) with zero errors.
-
----
+`test:db` never touches the development database (it needs a role with CREATEDB).
 
 ## 17. Phase 4 Overview (Next Step)
 

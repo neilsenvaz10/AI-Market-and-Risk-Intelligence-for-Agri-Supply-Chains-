@@ -3,10 +3,11 @@ import { config } from './config/index.js';
 import { pool } from './db.js';
 import { isFirebaseAdminReady } from './config/firebaseAdmin.js';
 import { mandiPipeline } from './services/index.js';
+import { createMandiSyncScheduler } from './pipeline/scheduler.js';
 
 let server;
 let retryTimer = null;
-let syncIntervalHandle = null;
+let mandiScheduler = null;
 
 const WELCOME_EMAIL_RETRY_MS = 15 * 60 * 1000;
 
@@ -24,41 +25,13 @@ function startWelcomeEmailRetries(welcomeEmail) {
 }
 
 /**
- * Scheduled Mandi Data Pipeline Sync
- * Runs automatically at the configured interval (MANDI_SYNC_INTERVAL_MINUTES).
- * Uses the provider configured by MANDI_DATA_PROVIDER env variable.
+ * Scheduled mandi sync: disabled unless MANDI_SYNC_INTERVAL_MINUTES is a valid
+ * interval AND MANDI_DATA_PROVIDER=DATA_GOV_IN (see pipeline/scheduler.js).
  */
-async function runScheduledSync() {
-  const providerName = config.mandi?.provider || 'MOCK';
-  console.log(`[Scheduler] Starting scheduled pipeline sync (provider: ${providerName})...`);
-  try {
-    const result = await mandiPipeline.runPipeline({ days: 1 });
-    console.log(
-      `[Scheduler] Sync completed — status: ${result.status}, fetched: ${result.records_fetched}, ` +
-      `inserted: ${result.records_inserted}, updated: ${result.records_updated}, ` +
-      `rejected: ${result.records_rejected}, time: ${result.execution_time_ms}ms`
-    );
-  } catch (err) {
-    console.error('[Scheduler] Scheduled pipeline sync failed:', err.message);
-  }
-}
-
 function startScheduledSync() {
-  const syncInterval = config.mandi?.syncIntervalMinutes ?? 60;
-  const intervalMs = syncInterval * 60 * 1000;
-  if (intervalMs <= 0) {
-    console.log('[Scheduler] Mandi sync scheduling disabled (MANDI_SYNC_INTERVAL_MINUTES <= 0).');
-    return;
-  }
-
-  // Trigger an initial sync shortly after startup (30s delay to allow DB to stabilize)
-  setTimeout(() => {
-    runScheduledSync();
-  }, 30_000);
-
-  // Schedule recurring sync
-  syncIntervalHandle = setInterval(runScheduledSync, intervalMs);
-  console.log(`[Scheduler] Mandi pipeline scheduled every ${syncInterval} minute(s) (provider: ${config.mandi?.provider || 'MOCK'})`);
+  for (const warning of config.mandi?.warnings || []) console.warn(`[Config] ${warning}`);
+  mandiScheduler = createMandiSyncScheduler({ mandiConfig: config.mandi, pipeline: mandiPipeline });
+  mandiScheduler.start();
 }
 
 function startServer(portToUse) {
@@ -113,9 +86,9 @@ function gracefulShutdown(signal) {
   }
 
   // Stop scheduled sync
-  if (syncIntervalHandle) {
-    clearInterval(syncIntervalHandle);
-    syncIntervalHandle = null;
+  if (mandiScheduler) {
+    mandiScheduler.stop();
+    mandiScheduler = null;
     console.log('[Scheduler] Pipeline sync scheduler stopped.');
   }
 
