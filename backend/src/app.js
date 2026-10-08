@@ -4,6 +4,7 @@ import { config } from './config/index.js';
 import healthRoutes from './routes/health.routes.js';
 import createAuthRoutes from './routes/auth.routes.js';
 import createFarmerRoutes from './routes/farmer.routes.js';
+import mandiRoutes from './routes/mandi.routes.js';
 import { requireAuth as defaultRequireAuth } from './middleware/auth.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { createEmailProvider } from './services/email/emailProvider.js';
@@ -38,13 +39,23 @@ export function createApp({ requireAuth = defaultRequireAuth, welcomeEmail = cre
     res.json({
       name: 'FASALYTICS API Backend',
       version: '1.0.0',
-      phase: 'Phase 2 - Farmer Authentication & Profiles',
+      phase: 'Phase 3 - Mandi Data Pipeline',
       endpoints: {
         health: '/api/health',
         databaseHealth: '/api/health/database',
         mlHealth: '/api/health/ml',
         session: '/api/auth/session',
         farmerProfile: '/api/farmers/me',
+        mandi: {
+          mandis: '/api/mandi/mandis',
+          mandiDetails: '/api/mandi/mandis/:id',
+          latestPrices: '/api/mandi/prices/latest',
+          priceHistory: '/api/mandi/prices/history',
+          commodities: '/api/mandi/commodities',
+          sync: '/api/mandi/sync',
+          syncStatus: '/api/mandi/sync/status',
+          qualityReport: '/api/mandi/quality/report',
+        },
       },
     });
   });
@@ -53,6 +64,7 @@ export function createApp({ requireAuth = defaultRequireAuth, welcomeEmail = cre
   app.use('/api/health', healthRoutes);
   app.use('/api/auth', createAuthRoutes(requireAuth));
   app.use('/api/farmers', createFarmerRoutes(requireAuth));
+  app.use('/api/mandi', mandiRoutes);
 
   // Error handling
   app.use(notFoundHandler);

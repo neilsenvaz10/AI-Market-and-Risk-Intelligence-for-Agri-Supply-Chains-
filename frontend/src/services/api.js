@@ -128,9 +128,63 @@ export async function checkMlHealth() {
   }
 }
 
+/**
+ * Mandi Data Pipeline API Client Methods (Phase 3)
+ */
+
+export async function getMandis(filters = {}) {
+  const query = new URLSearchParams(filters).toString();
+  const endpoint = `/api/mandi/mandis${query ? `?${query}` : ''}`;
+  return await fetchWithFallback(endpoint);
+}
+
+export async function getMandiDetails(id) {
+  return await fetchWithFallback(`/api/mandi/mandis/${id}`);
+}
+
+export async function getLatestMandiPrices(filters = {}) {
+  const query = new URLSearchParams(filters).toString();
+  const endpoint = `/api/mandi/prices/latest${query ? `?${query}` : ''}`;
+  return await fetchWithFallback(endpoint);
+}
+
+export async function getMandiPriceHistory(options = {}) {
+  const query = new URLSearchParams(options).toString();
+  const endpoint = `/api/mandi/prices/history${query ? `?${query}` : ''}`;
+  return await fetchWithFallback(endpoint);
+}
+
+export async function getCommodities() {
+  return await fetchWithFallback('/api/mandi/commodities');
+}
+
+export async function getPipelineStatus() {
+  return await fetchWithFallback('/api/mandi/sync/status');
+}
+
+export async function triggerMandiSync(params = {}) {
+  return await fetchWithFallback('/api/mandi/sync', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+}
+
+export async function getMandiQualityReport() {
+  return await fetchWithFallback('/api/mandi/quality/report');
+}
+
 export default {
   checkBackendHealth,
   checkDatabaseHealth,
   checkMlHealth,
+  getMandis,
+  getMandiDetails,
+  getLatestMandiPrices,
+  getMandiPriceHistory,
+  getCommodities,
+  getPipelineStatus,
+  triggerMandiSync,
+  getMandiQualityReport,
   getBaseUrl: () => resolvedApiUrl,
 };
