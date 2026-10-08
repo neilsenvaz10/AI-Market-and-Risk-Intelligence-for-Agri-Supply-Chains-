@@ -378,16 +378,14 @@ export function AuthProvider({ children }) {
   /** Changes the UI language; persisted to PostgreSQL when a profile exists. */
   const setLanguage = useCallback(async (code) => {
     if (!isSupportedLanguage(code) || code === language) return;
-    const previous = language;
     setLanguageState(code);
     storeLanguage(code);
     if (farmer && farmer.preferredLanguage !== code) {
+      setFarmer((prev) => (prev ? { ...prev, preferredLanguage: code } : prev));
       try {
         await saveProfile({ preferredLanguage: code });
       } catch (err) {
-        setLanguageState(previous);
-        storeLanguage(previous);
-        throw err;
+        console.warn('Could not sync language preference to profile:', err);
       }
     }
   }, [language, farmer, saveProfile]);

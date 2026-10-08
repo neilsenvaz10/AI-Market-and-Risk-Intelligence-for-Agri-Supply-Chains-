@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Field, inputClass } from './FormField';
 import { PASSWORD_RULES, validateIndianMobile } from '../services/authService';
+import { useAuth } from '../context/AuthContext';
+import { t } from '../i18n/strings';
 
 /** Primary CTA — same markup as the Stitch Splash "Get Started" button. */
 export function PrimaryButton({ loading, loadingLabel, children, icon = 'arrow_forward', className = '', disabled, ...props }) {
@@ -77,6 +79,9 @@ export function PhoneNumberField({ id = 'mobile', value, onChange, error, disabl
 /** Password input with show/hide toggle and optional strength checklist. */
 export function PasswordField({ id, label, value, onChange, error, showRules, autoComplete = 'current-password', disabled }) {
   const [visible, setVisible] = useState(false);
+  const auth = useAuth();
+  const lang = auth?.language || 'en';
+
   return (
     <div>
       <Field label={label} htmlFor={id} error={error}>
@@ -95,7 +100,7 @@ export function PasswordField({ id, label, value, onChange, error, showRules, au
           type="button"
           onClick={() => setVisible((v) => !v)}
           className="material-symbols-outlined text-on-surface-variant text-[20px] pr-1"
-          aria-label={visible ? 'Hide password' : 'Show password'}
+          aria-label={visible ? t(lang, 'auth.hidePassword') : t(lang, 'auth.showPassword')}
         >
           {visible ? 'visibility_off' : 'visibility'}
         </button>
@@ -104,12 +109,13 @@ export function PasswordField({ id, label, value, onChange, error, showRules, au
         <ul className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5">
           {PASSWORD_RULES.map((rule) => {
             const ok = rule.test(value);
+            const localizedLabel = t(lang, `auth.rule.${rule.id}`);
             return (
               <li key={rule.id} className={`text-[11px] flex items-center gap-1 ${ok ? 'text-secondary font-bold' : 'text-on-surface-variant'}`}>
                 <span className="material-symbols-outlined text-[14px]" style={ok ? { fontVariationSettings: "'FILL' 1" } : {}}>
                   {ok ? 'check_circle' : 'radio_button_unchecked'}
                 </span>
-                {rule.label}
+                {localizedLabel}
               </li>
             );
           })}
@@ -120,7 +126,11 @@ export function PasswordField({ id, label, value, onChange, error, showRules, au
 }
 
 /** "Continue with Google" — secondary surface button using Google's standard "G" mark. */
-export function GoogleButton({ onClick, loading, label = 'Continue with Google', disabled }) {
+export function GoogleButton({ onClick, loading, label, disabled }) {
+  const auth = useAuth();
+  const lang = auth?.language || 'en';
+  const buttonLabel = label || t(lang, 'continueGoogle');
+
   return (
     <button
       type="button"
@@ -138,16 +148,19 @@ export function GoogleButton({ onClick, loading, label = 'Continue with Google',
           <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
         </svg>
       )}
-      <span>{label}</span>
+      <span>{buttonLabel}</span>
     </button>
   );
 }
 
 export function OrDivider() {
+  const auth = useAuth();
+  const lang = auth?.language || 'en';
+
   return (
     <div className="flex items-center gap-space-sm text-on-surface-variant text-body-sm" aria-hidden="true">
       <span className="flex-1 h-px bg-outline-variant" />
-      <span>or</span>
+      <span>{t(lang, 'common.or')}</span>
       <span className="flex-1 h-px bg-outline-variant" />
     </div>
   );

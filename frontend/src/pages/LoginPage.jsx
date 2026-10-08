@@ -27,7 +27,7 @@ export default function LoginPage() {
     const errors = {};
     const emailError = validateEmail(email);
     if (emailError) errors.email = emailError;
-    if (!password) errors.password = 'Please enter your password.';
+    if (!password) errors.password = t(language, 'auth.enterPassword');
     setFieldErrors(errors);
     if (Object.keys(errors).length) return;
 
@@ -69,11 +69,13 @@ export default function LoginPage() {
           <AuthAlert tone="info">
             An account already exists for {pendingGoogleLink.email || 'this email'}. Log in with your password to
             securely link Google to it.{' '}
-            <button type="button" className="underline font-bold" onClick={clearPendingGoogleLink}>Cancel</button>
+            <button type="button" className="underline font-bold" onClick={clearPendingGoogleLink}>
+              {t(language, 'common.cancel')}
+            </button>
           </AuthAlert>
         )}
 
-        <Field label="Email / ईमेल" htmlFor="email" error={fieldErrors.email}>
+        <Field label={t(language, 'auth.email')} htmlFor="email" error={fieldErrors.email}>
           <span className="material-symbols-outlined text-on-surface-variant text-[20px] pl-1">mail</span>
           <input
             id="email"
@@ -89,7 +91,7 @@ export default function LoginPage() {
         </Field>
         <PasswordField
           id="password"
-          label="Password / पासवर्ड"
+          label={t(language, 'auth.password')}
           value={password}
           onChange={(v) => { setPassword(v); setFieldErrors((f) => ({ ...f, password: undefined })); }}
           error={fieldErrors.password}
@@ -110,17 +112,17 @@ export default function LoginPage() {
 
       <div className="flex flex-col gap-space-sm px-gutter">
         <p className="text-body-md text-center text-on-surface-variant">
-          New to FASALYTICS?{' '}
+          {t(language, 'auth.newToFasalytics')}{' '}
           <Link to="/signup" className="text-secondary font-bold">{t(language, 'createAccount')}</Link>
         </p>
         <div className="flex items-center justify-center gap-space-md">
           <Link to="/login/phone" className="text-secondary text-body-sm font-bold flex items-center gap-1">
             <span className="material-symbols-outlined text-[16px]">sms</span>
-            <span>Mobile OTP login</span>
+            <span>{t(language, 'auth.mobileOtpLogin')}</span>
           </Link>
           <Link to="/onboarding" className="text-secondary text-body-sm font-bold flex items-center gap-1">
             <span className="material-symbols-outlined text-[16px]">translate</span>
-            <span>भाषा बदला</span>
+            <span>{t(language, 'auth.changeLanguage')}</span>
           </Link>
         </div>
       </div>

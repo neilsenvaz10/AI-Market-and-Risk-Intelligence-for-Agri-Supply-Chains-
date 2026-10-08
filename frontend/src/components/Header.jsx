@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { checkBackendHealth } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { LANGUAGES } from '../i18n/languages';
+import { t } from '../i18n/strings';
 import AccountMenu from './AccountMenu';
 
 export default function Header() {
@@ -51,7 +52,11 @@ export default function Header() {
                   : 'bg-amber-600'
               }`}
             ></span>
-            {backendStatus === 'connected' ? 'API LIVE' : backendStatus === 'checking' ? 'SYNC' : 'LOCAL'}
+            {backendStatus === 'connected'
+              ? t(language, 'header.status.live')
+              : backendStatus === 'checking'
+              ? t(language, 'header.status.checking')
+              : t(language, 'header.status.offline')}
           </span>
         </div>
         <div className="flex items-center gap-space-md">

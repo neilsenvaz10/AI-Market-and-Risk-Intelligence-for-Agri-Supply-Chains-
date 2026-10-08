@@ -44,7 +44,7 @@ export default function VerifyOtpPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (code.length !== OTP_LENGTH) {
-      setError(`Please enter the ${OTP_LENGTH}-digit OTP.`);
+      setError(t(language, 'auth.enterExactOtp', { length: OTP_LENGTH }));
       return;
     }
     setVerifying(true);
@@ -73,7 +73,7 @@ export default function VerifyOtpPage() {
     try {
       await resendOtp();
       setCode('');
-      setInfo('A new OTP has been sent.');
+      setInfo(t(language, 'auth.verificationEmailSent') || 'A new OTP has been sent.');
     } catch (err) {
       setError(getAuthErrorMessage(err));
     } finally {
@@ -95,7 +95,7 @@ export default function VerifyOtpPage() {
           htmlFor="otp"
           className="text-label-md font-label-md text-on-surface-variant uppercase tracking-wider text-center mb-1"
         >
-          Enter OTP / OTP टाका
+          {t(language, 'auth.enterOtp')}
         </label>
         <div
           className={`flex items-center gap-space-md p-space-md rounded-xl shadow-sm transition-all border-2 bg-surface-container-low ${
@@ -172,7 +172,7 @@ export default function VerifyOtpPage() {
       </form>
 
       <p className="text-body-sm text-center text-on-surface-variant px-gutter">
-        OTP is valid for a few minutes. Never share it with anyone.
+        {t(language, 'auth.otpNotice')}
       </p>
     </div>
   );

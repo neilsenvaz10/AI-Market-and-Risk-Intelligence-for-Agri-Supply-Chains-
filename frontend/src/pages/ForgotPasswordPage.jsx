@@ -47,8 +47,8 @@ export default function ForgotPasswordPage() {
     <div className="flex flex-col w-full min-h-[80vh] justify-between py-space-md">
       <AuthBranding
         icon="lock_reset"
-        title="Reset your password"
-        subtitle="Enter the mobile number registered with your FASALYTICS account. We will verify it with an OTP."
+        title={t(language, 'auth.resetPasswordTitle')}
+        subtitle={t(language, 'auth.resetPasswordSubtitle')}
       />
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-space-sm px-gutter my-space-lg">
         {isUsingAuthEmulator && <EmulatorBadge />}
@@ -57,7 +57,7 @@ export default function ForgotPasswordPage() {
           onChange={(v) => { setMobile(v); setFieldError(null); setError(null); }}
           error={fieldError}
           disabled={sending || !isFirebaseConfigured}
-          label={`Registered ${t(language, 'mobileNumber')}`}
+          label={t(language, 'auth.registeredMobile')}
         />
         {error && <AuthAlert>{error}</AuthAlert>}
         <PrimaryButton className="mt-space-sm" loading={sending} loadingLabel={t(language, 'sendingOtp')} icon="sms" disabled={!isFirebaseConfigured}>
@@ -66,7 +66,7 @@ export default function ForgotPasswordPage() {
       </form>
       <Link to="/login" className="text-on-surface-variant text-body-sm font-bold flex items-center justify-center gap-1">
         <span className="material-symbols-outlined text-[16px]">arrow_back</span>
-        <span>Back to login</span>
+        <span>{t(language, 'auth.backToLogin')}</span>
       </Link>
     </div>
   );

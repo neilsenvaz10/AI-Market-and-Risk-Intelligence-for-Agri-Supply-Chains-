@@ -3,6 +3,8 @@ import { COMMON_CROPS, INDIAN_STATES, QUANTITY_UNITS, formatPhone } from '../con
 import { EMPTY_PROFILE, toPayload, validateProfile } from '../utils/profileValidation';
 import { LANGUAGES } from '../i18n/languages';
 import { Field, inputClass } from './FormField';
+import { useAuth } from '../context/AuthContext';
+import { t } from '../i18n/strings';
 
 function ChoiceChips({ options, value, onChange, name }) {
   return (
@@ -51,28 +53,31 @@ export default function FarmerProfileForm({
   initialValues,
   phoneNumber,
   submitLabel,
-  submittingLabel = 'Saving...',
+  submittingLabel,
   onSubmit,
   onCancel,
 }) {
-  const [values, setValues] = useState(() => ({ ...EMPTY_PROFILE, ...normalise(initialValues) }));
+  const { language } = useAuth();
+  const [values, setValues] = useState(() => ({
+    ...EMPTY_PROFILE,
+    ...normalise(initialValues),
+  }));
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const set = (field) => (eventOrValue) => {
-    const value = eventOrValue?.target ? eventOrValue.target.value : eventOrValue;
-    setValues((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
+  const set = (field) => (e) => {
+    const val = typeof e === 'object' && e !== null && 'target' in e ? e.target.value : e;
+    setValues((prev) => ({ ...prev, [field]: val }));
+    setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError(null);
-    const clientErrors = validateProfile(values);
-    if (Object.keys(clientErrors).length) {
-      setErrors(clientErrors);
-      setFormError('Please correct the highlighted fields.');
+    const { valid, errors: validationErrors } = validateProfile(values);
+    if (!valid) {
+      setErrors(validationErrors);
       return;
     }
     setSubmitting(true);
@@ -86,46 +91,51 @@ export default function FarmerProfileForm({
     }
   };
 
+  const quantityUnitsTranslated = QUANTITY_UNITS.map((u) => ({
+    value: u.value,
+    label: u.value === 'quintal' ? t(language, 'profile.form.unitQuintal') : t(language, 'profile.form.unitKg'),
+  }));
+
   return (
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-space-md">
-      <Field label="Full Name / पूर्ण नाव" htmlFor="fullName" error={errors.fullName}>
+      <Field label={t(language, 'profile.form.fullName')} htmlFor="fullName" error={errors.fullName}>
         <span className="material-symbols-outlined text-on-surface-variant text-[20px] pl-1">person</span>
         <input id="fullName" className={inputClass} value={values.fullName} onChange={set('fullName')}
           placeholder="e.g. Ramesh Patil" autoComplete="name" maxLength={100} />
       </Field>
 
-      <Field label="Verified Mobile Number" htmlFor="phoneNumber">
+      <Field label={t(language, 'profile.form.verifiedMobile')} htmlFor="phoneNumber">
         <span className="material-symbols-outlined text-secondary text-[20px] pl-1" style={{ fontVariationSettings: "'FILL' 1" }}>
           verified
         </span>
         <input id="phoneNumber" className={`${inputClass} text-on-surface-variant`} value={formatPhone(phoneNumber)} readOnly
           aria-readonly="true" tabIndex={-1} />
         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container shrink-0">
-          OTP VERIFIED
+          {t(language, 'profile.form.otpVerified')}
         </span>
       </Field>
 
-      <Field label="State / राज्य" htmlFor="state" error={errors.state}>
+      <Field label={t(language, 'profile.form.state')} htmlFor="state" error={errors.state}>
         <span className="material-symbols-outlined text-on-surface-variant text-[20px] pl-1">map</span>
         <select id="state" className={`${inputClass} appearance-none cursor-pointer`} value={values.state} onChange={set('state')}>
-          <option value="">Select state</option>
+          <option value="">{t(language, 'profile.form.selectState')}</option>
           {INDIAN_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
         <span className="material-symbols-outlined text-on-surface-variant text-[20px] pointer-events-none">expand_more</span>
       </Field>
 
       <div className="grid grid-cols-2 gap-space-sm">
-        <Field label="District / जिल्हा" htmlFor="district" error={errors.district}>
+        <Field label={t(language, 'profile.form.district')} htmlFor="district" error={errors.district}>
           <input id="district" className={inputClass} value={values.district} onChange={set('district')}
             placeholder="e.g. Nashik" maxLength={64} />
         </Field>
-        <Field label="Village / Town" htmlFor="village" error={errors.village} optional>
+        <Field label={t(language, 'profile.form.village')} htmlFor="village" error={errors.village} optional>
           <input id="village" className={inputClass} value={values.village} onChange={set('village')}
             placeholder="e.g. Lasalgaon" maxLength={100} />
         </Field>
       </div>
 
-      <Field label="Primary Crop / मुख्य पीक" htmlFor="primaryCrop" error={errors.primaryCrop}>
+      <Field label={t(language, 'profile.form.primaryCrop')} htmlFor="primaryCrop" error={errors.primaryCrop}>
         <span className="material-symbols-outlined text-on-surface-variant text-[20px] pl-1">eco</span>
         <input id="primaryCrop" className={inputClass} value={values.primaryCrop} onChange={set('primaryCrop')}
           placeholder="e.g. Onion" list="crop-suggestions" maxLength={64} autoComplete="off" />
@@ -135,20 +145,20 @@ export default function FarmerProfileForm({
       </Field>
 
       <div>
-        <Field label="Crop Quantity / प्रमाण" htmlFor="cropQuantity" error={errors.cropQuantity}>
+        <Field label={t(language, 'profile.form.cropQuantity')} htmlFor="cropQuantity" error={errors.cropQuantity}>
           <span className="material-symbols-outlined text-on-surface-variant text-[20px] pl-1">scale</span>
           <input id="cropQuantity" className={inputClass} value={values.cropQuantity} onChange={set('cropQuantity')}
             placeholder="e.g. 25" inputMode="decimal" />
         </Field>
         <div className="mt-space-sm">
-          <ChoiceChips name="Quantity unit" options={QUANTITY_UNITS} value={values.quantityUnit} onChange={set('quantityUnit')} />
+          <ChoiceChips name={t(language, 'profile.form.quantityUnit')} options={quantityUnitsTranslated} value={values.quantityUnit} onChange={set('quantityUnit')} />
         </div>
       </div>
 
       <div>
-        <span className="text-body-sm font-bold text-on-surface block mb-1">Preferred Language / भाषा</span>
+        <span className="text-body-sm font-bold text-on-surface block mb-1">{t(language, 'profile.form.preferredLanguage')}</span>
         <ChoiceChips
-          name="Preferred language"
+          name={t(language, 'profile.form.preferredLanguage')}
           options={LANGUAGES.map((l) => ({ value: l.code, label: l.code === 'en' ? 'English' : l.code === 'hi' ? 'हिन्दी' : 'मराठी' }))}
           value={values.preferredLanguage}
           onChange={set('preferredLanguage')}
@@ -170,7 +180,7 @@ export default function FarmerProfileForm({
             disabled={submitting}
             className="flex-1 py-4 rounded-xl bg-surface-container-high text-on-surface font-headline-md text-headline-md shadow-sm active:scale-95 transition-transform disabled:opacity-60"
           >
-            Cancel
+            {t(language, 'common.cancel')}
           </button>
         )}
         <button
@@ -181,11 +191,11 @@ export default function FarmerProfileForm({
           {submitting ? (
             <>
               <span className="material-symbols-outlined animate-spin">progress_activity</span>
-              <span>{submittingLabel}</span>
+              <span>{submittingLabel || t(language, 'common.saving')}</span>
             </>
           ) : (
             <>
-              <span>{submitLabel}</span>
+              <span>{submitLabel || t(language, 'saveProfile')}</span>
               <span className="material-symbols-outlined">arrow_forward</span>
             </>
           )}

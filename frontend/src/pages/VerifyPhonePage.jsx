@@ -44,7 +44,7 @@ export default function VerifyPhonePage() {
         {isUsingAuthEmulator && <EmulatorBadge />}
         {account?.email && (
           <p className="text-body-sm text-center text-on-surface-variant">
-            Account: <span className="font-bold text-on-surface">{account.email}</span>
+            {t(language, 'auth.account')}: <span className="font-bold text-on-surface">{account.email}</span>
           </p>
         )}
         <PhoneNumberField
@@ -52,7 +52,7 @@ export default function VerifyPhonePage() {
           onChange={(v) => { setMobile(v); setFieldError(null); setError(null); }}
           error={fieldError}
           disabled={sending}
-          label={`${t(language, 'mobileNumber')} / मोबाईल नंबर`}
+          label={t(language, 'auth.mobileNumber')}
         />
         {error && <AuthAlert>{error}</AuthAlert>}
         <PrimaryButton className="mt-space-sm" loading={sending} loadingLabel={t(language, 'sendingOtp')} icon="sms">
@@ -63,7 +63,7 @@ export default function VerifyPhonePage() {
       <button type="button" onClick={logout} disabled={loggingOut}
         className="text-on-surface-variant text-body-sm font-bold flex items-center justify-center gap-1">
         <span className="material-symbols-outlined text-[16px]">logout</span>
-        <span>Use a different account</span>
+        <span>{t(language, 'auth.useDifferentAccount')}</span>
       </button>
     </div>
   );

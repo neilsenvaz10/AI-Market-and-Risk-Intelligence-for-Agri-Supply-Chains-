@@ -5,6 +5,7 @@ import { getAuthErrorMessage, hasGoogleProvider, hasPasswordProvider, validatePa
 import AuthBranding, { AuthAlert } from '../components/AuthBranding';
 import { PasswordField, PrimaryButton } from '../components/AuthControls';
 import AuthStatusScreen from '../components/AuthStatusScreen';
+import { t } from '../i18n/strings';
 
 /**
  * Password recovery, step 2 (only after phone-OTP proof in this session).
@@ -12,7 +13,7 @@ import AuthStatusScreen from '../components/AuthStatusScreen';
  * - Google-only accounts: no password is added unless the farmer explicitly chooses to create one.
  */
 export default function ResetPasswordPage() {
-  const { user, hasPasswordResetProof, resetPassword } = useAuth();
+  const { user, hasPasswordResetProof, resetPassword, language } = useAuth();
   const { logout } = useLogout();
   const navigate = useNavigate();
   const [password, setPassword] = useState('');
@@ -26,7 +27,7 @@ export default function ResetPasswordPage() {
   const [phase, setPhase] = useState('idle');
 
   if (phase === 'done') return <Navigate to="/login" replace />;
-  if (phase === 'saving' && (!hasPasswordResetProof || !user)) return <AuthStatusScreen message="Saving your password..." />;
+  if (phase === 'saving' && (!hasPasswordResetProof || !user)) return <AuthStatusScreen message={t(language, 'common.saving')} />;
   if (!hasPasswordResetProof || !user) return <Navigate to="/forgot-password" replace />;
   if (!user.email) return <Navigate to="/" replace />; // mobile-only account: setup adds email + password
 
@@ -38,7 +39,7 @@ export default function ResetPasswordPage() {
     const fieldErrors = {};
     const passwordError = validatePassword(password);
     if (passwordError) fieldErrors.password = passwordError;
-    if (confirm !== password) fieldErrors.confirm = 'Passwords do not match';
+    if (confirm !== password) fieldErrors.confirm = t(language, 'auth.passwordsDoNotMatch');
     setErrors(fieldErrors);
     if (Object.keys(fieldErrors).length) return;
     setSaving(true);
@@ -57,7 +58,7 @@ export default function ResetPasswordPage() {
   if (isGoogleOnly && !createChosen) {
     return (
       <div className="flex flex-col w-full min-h-[80vh] justify-between py-space-md">
-        <AuthBranding icon="verified_user" title="Mobile verified" subtitle={`${user.email} signs in with Google and has no password.`} />
+        <AuthBranding icon="verified_user" title={t(language, 'profile.verified')} subtitle={t(language, 'auth.mobileVerifiedSubtitle', { email: user.email })} />
         <div className="flex flex-col gap-space-sm px-gutter my-space-lg">
           <AuthAlert tone="info">You can keep using “Continue with Google”, or create a password to also log in with your email.</AuthAlert>
           <button type="button" onClick={() => navigate('/', { replace: true })}
@@ -67,12 +68,12 @@ export default function ResetPasswordPage() {
           </button>
           <button type="button" onClick={() => setCreateChosen(true)}
             className="w-full py-3 rounded-xl bg-surface-container-lowest text-on-surface border border-outline-variant font-label-lg text-label-lg shadow-sm">
-            Create a password
+            {t(language, 'auth.createPasswordTitle')}
           </button>
         </div>
         <button type="button" onClick={logout} className="text-on-surface-variant text-body-sm font-bold flex items-center justify-center gap-1">
           <span className="material-symbols-outlined text-[16px]">logout</span>
-          <span>Log Out</span>
+          <span>{t(language, 'profile.logout')}</span>
         </button>
       </div>
     );
@@ -82,24 +83,26 @@ export default function ResetPasswordPage() {
     <div className="flex flex-col w-full min-h-[80vh] justify-between py-space-md">
       <AuthBranding
         icon="lock_reset"
-        title={isPasswordAccount ? 'Set a new password' : 'Create a password'}
-        subtitle={`Mobile verified for ${user.email}.${isPasswordAccount ? ' Your new password must be different from your current one.' : ''}`}
+        title={isPasswordAccount ? t(language, 'auth.setNewPasswordTitle') : t(language, 'auth.createPasswordTitle')}
+        subtitle={isPasswordAccount
+          ? t(language, 'auth.mobileVerifiedSubtitleDiff', { email: user.email })
+          : t(language, 'auth.mobileVerifiedSubtitle', { email: user.email })}
       />
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-space-md px-gutter my-space-lg">
-        <PasswordField id="newPassword" label="New Password" value={password}
+        <PasswordField id="newPassword" label={t(language, 'auth.newPassword')} value={password}
           onChange={(v) => { setPassword(v); setErrors((x) => ({ ...x, password: undefined })); }}
           error={errors.password} showRules autoComplete="new-password" disabled={saving} />
-        <PasswordField id="confirmNewPassword" label="Confirm New Password" value={confirm}
+        <PasswordField id="confirmNewPassword" label={t(language, 'auth.confirmNewPassword')} value={confirm}
           onChange={(v) => { setConfirm(v); setErrors((x) => ({ ...x, confirm: undefined })); }}
           error={errors.confirm} autoComplete="new-password" disabled={saving} />
         {error && <AuthAlert>{error}</AuthAlert>}
-        <PrimaryButton loading={saving} loadingLabel="Saving...">
-          {isPasswordAccount ? 'Update Password' : 'Create Password'}
+        <PrimaryButton loading={saving} loadingLabel={t(language, 'common.saving')}>
+          {isPasswordAccount ? t(language, 'auth.updatePassword') : t(language, 'auth.createPassword')}
         </PrimaryButton>
       </form>
       <button type="button" onClick={logout} className="text-on-surface-variant text-body-sm font-bold flex items-center justify-center gap-1">
         <span className="material-symbols-outlined text-[16px]">close</span>
-        <span>Cancel and log out</span>
+        <span>{t(language, 'auth.cancelAndLogout')}</span>
       </button>
     </div>
   );

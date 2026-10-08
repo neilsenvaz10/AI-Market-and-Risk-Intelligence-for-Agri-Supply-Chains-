@@ -40,8 +40,8 @@ export default function SignupPage() {
     if (emailError) e.email = emailError;
     const passwordError = validatePassword(values.password);
     if (passwordError) e.password = passwordError;
-    if (!values.confirmPassword) e.confirmPassword = 'Please confirm your password';
-    else if (values.confirmPassword !== values.password) e.confirmPassword = 'Passwords do not match';
+    if (!values.confirmPassword) e.confirmPassword = t(language, 'auth.confirmPassword');
+    else if (values.confirmPassword !== values.password) e.confirmPassword = t(language, 'auth.passwordsDoNotMatch');
     const mobileError = validateIndianMobile(values.mobile);
     if (mobileError) e.mobile = mobileError;
     return e;
@@ -88,24 +88,24 @@ export default function SignupPage() {
         <OrDivider />
 
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-space-md">
-          <Field label="Full Name / पूर्ण नाव" htmlFor="fullName" error={errors.fullName}>
+          <Field label={t(language, 'auth.fullName')} htmlFor="fullName" error={errors.fullName}>
             <span className="material-symbols-outlined text-on-surface-variant text-[20px] pl-1">person</span>
             <input id="fullName" className={inputClass} value={values.fullName} onChange={(e) => set('fullName')(e.target.value)}
               placeholder="e.g. Ramesh Patil" autoComplete="name" maxLength={100} disabled={busy} />
           </Field>
-          <Field label="Email / ईमेल" htmlFor="email" error={errors.email}>
+          <Field label={t(language, 'auth.email')} htmlFor="email" error={errors.email}>
             <span className="material-symbols-outlined text-on-surface-variant text-[20px] pl-1">mail</span>
             <input id="email" type="email" className={inputClass} value={values.email} onChange={(e) => set('email')(e.target.value)}
               placeholder="you@gmail.com" autoComplete="email" inputMode="email" disabled={busy} />
           </Field>
-          <PasswordField id="password" label="Password / पासवर्ड" value={values.password} onChange={set('password')}
+          <PasswordField id="password" label={t(language, 'auth.password')} value={values.password} onChange={set('password')}
             error={errors.password} showRules autoComplete="new-password" disabled={busy} />
-          <PasswordField id="confirmPassword" label="Confirm Password" value={values.confirmPassword} onChange={set('confirmPassword')}
+          <PasswordField id="confirmPassword" label={t(language, 'auth.confirmPassword')} value={values.confirmPassword} onChange={set('confirmPassword')}
             error={errors.confirmPassword} autoComplete="new-password" disabled={busy} />
           <div>
-            <span className="text-body-sm font-bold text-on-surface block mb-1">Mobile Number / मोबाईल नंबर</span>
+            <span className="text-body-sm font-bold text-on-surface block mb-1">{t(language, 'auth.mobileNumber')}</span>
             <PhoneNumberField value={values.mobile} onChange={set('mobile')} error={errors.mobile} disabled={busy} />
-            <p className="text-[11px] text-on-surface-variant mt-1">We will verify this number once with an OTP in the next step.</p>
+            <p className="text-[11px] text-on-surface-variant mt-1">{t(language, 'auth.verifyNextStep')}</p>
           </div>
 
           {error && <AuthAlert>{error}</AuthAlert>}
@@ -117,7 +117,7 @@ export default function SignupPage() {
       </div>
 
       <p className="text-body-md text-center text-on-surface-variant">
-        Already registered? <Link to="/login" className="text-secondary font-bold">{t(language, 'logIn')}</Link>
+        {t(language, 'auth.alreadyRegistered')} <Link to="/login" className="text-secondary font-bold">{t(language, 'logIn')}</Link>
       </p>
     </div>
   );

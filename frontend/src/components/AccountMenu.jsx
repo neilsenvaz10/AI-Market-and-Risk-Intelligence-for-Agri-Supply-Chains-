@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth, useLogout } from '../context/AuthContext';
 import { formatPhone } from '../constants/profile';
+import { t } from '../i18n/strings';
 
 const avatarClass =
   'w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-on-secondary hover:opacity-90';
@@ -11,7 +12,7 @@ const avatarClass =
  * Log Out; signed-out visitors keep the original link (redirects to login).
  */
 export default function AccountMenu() {
-  const { isAuthenticated, farmer, user } = useAuth();
+  const { isAuthenticated, farmer, user, language } = useAuth();
   const { logout, loggingOut, logoutError } = useLogout();
   const [open, setOpen] = useState(false);
   const menuRef = useRef(null);
@@ -34,7 +35,7 @@ export default function AccountMenu() {
 
   if (!isAuthenticated) {
     return (
-      <Link to="/profile" className={avatarClass} aria-label="Account">
+      <Link to="/profile" className={avatarClass} aria-label={t(language, 'auth.accountLabel')}>
         <span className="material-symbols-outlined text-on-secondary text-[18px]">person</span>
       </Link>
     );
@@ -45,7 +46,7 @@ export default function AccountMenu() {
       <button
         type="button"
         className={avatarClass}
-        aria-label="Account menu"
+        aria-label={t(language, 'auth.accountMenu')}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
@@ -59,7 +60,9 @@ export default function AccountMenu() {
           className="absolute right-0 top-11 w-56 bg-surface-container-lowest text-on-surface rounded-xl shadow-md border border-outline-variant/30 overflow-hidden"
         >
           <div className="px-4 py-3 border-b border-surface-container">
-            <p className="font-label-lg text-sm font-bold text-on-surface truncate">{farmer?.fullName || 'Farmer'}</p>
+            <p className="font-label-lg text-sm font-bold text-on-surface truncate">
+              {farmer?.fullName || t(language, 'auth.farmer')}
+            </p>
             <p className="font-body-sm text-xs text-on-surface-variant truncate">{farmer?.email || user?.email || ''}</p>
             <p className="font-body-sm text-xs text-on-surface-variant">{formatPhone(farmer?.phoneNumber || user?.phoneNumber)}</p>
           </div>
@@ -71,7 +74,7 @@ export default function AccountMenu() {
               className="flex items-center gap-3 px-4 py-3 text-body-md text-on-surface hover:bg-surface-container-low"
             >
               <span className="material-symbols-outlined text-[20px] text-on-surface-variant">person</span>
-              My Profile
+              {t(language, 'auth.myProfile')}
             </Link>
           )}
           <button
@@ -84,7 +87,7 @@ export default function AccountMenu() {
             <span className={`material-symbols-outlined text-[20px] ${loggingOut ? 'animate-spin' : ''}`}>
               {loggingOut ? 'progress_activity' : 'logout'}
             </span>
-            {loggingOut ? 'Logging out...' : 'Log Out'}
+            {loggingOut ? t(language, 'profile.loggingOut') : t(language, 'profile.logout')}
           </button>
           {logoutError && (
             <p className="px-4 pb-3 text-body-sm text-error" role="alert">{logoutError}</p>

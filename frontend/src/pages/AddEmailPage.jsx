@@ -8,6 +8,7 @@ import {
 import AuthBranding, { AuthAlert } from '../components/AuthBranding';
 import { GoogleButton, OrDivider, PasswordField, PrimaryButton } from '../components/AuthControls';
 import { Field, inputClass } from '../components/FormField';
+import { t } from '../i18n/strings';
 
 // Session ended by Firebase after a security-sensitive change: log in again to continue.
 const RELOGIN_CODES = new Set(['auth/requires-recent-login', 'auth/user-token-expired', 'auth/user-mismatch']);
@@ -16,17 +17,11 @@ const RELOGIN_CODES = new Set(['auth/requires-recent-login', 'auth/user-token-ex
  * Registration step for accounts created with a mobile number only: adds an
  * email login to the SAME Firebase account (UID, verified phone and farmer
  * profile are preserved).
- *
- * 1. linkWithCredential(EmailAuthProvider.credential(email, password)).
- * 2. If the project refuses unverified emails (email enumeration protection),
- *    Firebase emails a one-time link; opening it links the VERIFIED email via
- *    EmailAuthProvider.credentialWithLink() and then sets the password.
- * 3. Accounts that already have a verified email but no login method only create a password.
  */
 export default function AddEmailPage() {
   const {
     account, addEmailPassword, startVerifiedEmailUpgrade, completeVerifiedEmailUpgrade,
-    createPasswordForAccount, linkGoogle, logout: contextLogout,
+    createPasswordForAccount, linkGoogle, logout: contextLogout, language,
   } = useAuth();
   const { logout, loggingOut } = useLogout();
   const navigate = useNavigate();
@@ -71,7 +66,7 @@ export default function AddEmailPage() {
     }
     const passwordError = validatePassword(values.password);
     if (passwordError) e.password = passwordError;
-    if (values.confirmPassword !== values.password) e.confirmPassword = 'Passwords do not match';
+    if (values.confirmPassword !== values.password) e.confirmPassword = t(language, 'auth.passwordsDoNotMatch');
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -150,24 +145,24 @@ export default function AddEmailPage() {
   if (awaitingLink) {
     return (
       <div className="flex flex-col w-full min-h-[80vh] justify-between py-space-md">
-        <AuthBranding icon="mark_email_unread" title="Verify your email" subtitle={notice} />
+        <AuthBranding icon="mark_email_unread" title={t(language, 'verifyEmailTitle')} subtitle={notice} />
         <div className="flex flex-col gap-space-sm px-gutter my-space-lg">
           {errorBlock}
           <button type="button" onClick={handleResendLink}
             className="text-secondary text-body-sm font-bold flex items-center justify-center gap-1 mt-space-sm">
             <span className="material-symbols-outlined text-[16px]">refresh</span>
-            Resend verification link
+            {t(language, 'auth.resendEmail')}
           </button>
           <button type="button" onClick={() => { setAwaitingLink(false); setNotice(null); }}
             className="text-on-surface-variant text-body-sm font-bold flex items-center justify-center gap-1">
             <span className="material-symbols-outlined text-[16px]">edit</span>
-            Use a different email
+            {t(language, 'auth.useDifferentAccount')}
           </button>
         </div>
         <button type="button" onClick={logout} disabled={loggingOut}
           className="text-on-surface-variant text-body-sm font-bold flex items-center justify-center gap-1">
           <span className="material-symbols-outlined text-[16px]">logout</span>
-          <span>Log Out</span>
+          <span>{t(language, 'profile.logout')}</span>
         </button>
       </div>
     );
@@ -177,7 +172,7 @@ export default function AddEmailPage() {
     <div className="flex flex-col w-full py-space-md gap-space-lg">
       <AuthBranding
         icon="alternate_email"
-        title={passwordOnly || emailLink ? 'Create your password' : 'Add your email'}
+        title={passwordOnly || emailLink ? t(language, 'auth.createPasswordTitle') : 'Add your email'}
         subtitle={passwordOnly
           ? `${account.email} is verified. Create a password to log in without an OTP.`
           : emailLink
@@ -187,33 +182,33 @@ export default function AddEmailPage() {
       <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm border border-outline-variant/30 flex flex-col gap-space-md">
         {!passwordOnly && !emailLink && (
           <>
-            <GoogleButton onClick={handleGoogle} loading={googleLoading} label="Link my Google account" disabled={submitting} />
+            <GoogleButton onClick={handleGoogle} loading={googleLoading} label={t(language, 'auth.linkGoogleAccount')} disabled={submitting} />
             <OrDivider />
           </>
         )}
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-space-md">
           {!passwordOnly && (
-            <Field label="Email / ईमेल" htmlFor="email" error={errors.email}>
+            <Field label={t(language, 'auth.email')} htmlFor="email" error={errors.email}>
               <span className="material-symbols-outlined text-on-surface-variant text-[20px] pl-1">mail</span>
               <input id="email" type="email" className={inputClass} value={values.email} onChange={(e) => set('email')(e.target.value)}
                 placeholder="you@gmail.com" autoComplete="email" disabled={busy} />
             </Field>
           )}
-          <PasswordField id="password" label="Password / पासवर्ड" value={values.password} onChange={set('password')}
+          <PasswordField id="password" label={t(language, 'auth.password')} value={values.password} onChange={set('password')}
             error={errors.password} showRules autoComplete="new-password" disabled={busy} />
-          <PasswordField id="confirmPassword" label="Confirm Password" value={values.confirmPassword} onChange={set('confirmPassword')}
+          <PasswordField id="confirmPassword" label={t(language, 'auth.confirmPassword')} value={values.confirmPassword} onChange={set('confirmPassword')}
             error={errors.confirmPassword} autoComplete="new-password" disabled={busy} />
           {notice && <AuthAlert tone="info">{notice}</AuthAlert>}
           {errorBlock}
-          <PrimaryButton loading={submitting} loadingLabel="Saving...">
-            {passwordOnly || emailLink ? 'Create Password' : 'Add Email Login'}
+          <PrimaryButton loading={submitting} loadingLabel={t(language, 'common.saving')}>
+            {passwordOnly || emailLink ? t(language, 'auth.createPassword') : 'Add Email Login'}
           </PrimaryButton>
         </form>
       </div>
       <button type="button" onClick={logout} disabled={loggingOut}
         className="text-on-surface-variant text-body-sm font-bold flex items-center justify-center gap-1">
         <span className="material-symbols-outlined text-[16px]">logout</span>
-        <span>Log Out</span>
+        <span>{t(language, 'profile.logout')}</span>
       </button>
     </div>
   );

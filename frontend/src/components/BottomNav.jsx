@@ -1,15 +1,18 @@
 import { Link, useLocation } from 'react-router-dom';
-
-const navItems = [
-  { path: '/', icon: 'home', label: 'Home', dataPath: 'home' },
-  { path: '/ask-ai', icon: 'smart_toy', label: 'Ask AI', dataPath: 'ask-ai' },
-  { path: '/mandis', icon: 'storefront', label: 'Mandis', dataPath: 'mandis' },
-  { path: '/alerts', icon: 'notifications', label: 'Alerts', dataPath: 'alerts' },
-  { path: '/profile', icon: 'person', label: 'Profile', dataPath: 'profile' },
-];
+import { useAuth } from '../context/AuthContext';
+import { t } from '../i18n/strings';
 
 export default function BottomNav() {
   const location = useLocation();
+  const { language } = useAuth();
+
+  const navItems = [
+    { path: '/', icon: 'home', labelKey: 'nav.home', dataPath: 'home' },
+    { path: '/ask-ai', icon: 'smart_toy', labelKey: 'nav.askAi', dataPath: 'ask-ai' },
+    { path: '/mandis', icon: 'storefront', labelKey: 'nav.mandis', dataPath: 'mandis' },
+    { path: '/alerts', icon: 'notifications', labelKey: 'nav.alerts', dataPath: 'alerts' },
+    { path: '/profile', icon: 'person', labelKey: 'nav.profile', dataPath: 'profile' },
+  ];
 
   const isActive = (path) => {
     if (path === '/') return location.pathname === '/';
@@ -33,7 +36,7 @@ export default function BottomNav() {
           >
             <span className="material-symbols-outlined">{item.icon}</span>
             <span className={`text-body-sm ${isActive(item.path) ? 'font-bold' : ''}`}>
-              {item.label}
+              {t(language, item.labelKey)}
             </span>
           </Link>
         ))}

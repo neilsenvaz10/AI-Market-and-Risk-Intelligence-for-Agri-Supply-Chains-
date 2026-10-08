@@ -52,7 +52,7 @@ export default function PhoneLoginPage() {
           onChange={(v) => { setMobile(v); setFieldError(null); setError(null); }}
           error={fieldError}
           disabled={sending || !isFirebaseConfigured}
-          label={`${t(language, 'mobileNumber')} / मोबाईल नंबर`}
+          label={t(language, 'auth.mobileNumber')}
         />
         {error && <AuthAlert>{error}</AuthAlert>}
 
@@ -64,10 +64,10 @@ export default function PhoneLoginPage() {
       <div className="flex flex-col gap-space-sm px-gutter">
         <Link to="/login" className="text-secondary text-body-sm font-bold flex items-center justify-center gap-1">
           <span className="material-symbols-outlined text-[16px]">mail</span>
-          <span>Log in with email instead</span>
+          <span>{t(language, 'auth.loginWithEmailInstead')}</span>
         </Link>
         <p className="text-body-sm text-center text-on-surface-variant mt-2">
-          For farmers who registered with a mobile number. Protected by reCAPTCHA.
+          {t(language, 'auth.phoneLoginNotice')}
         </p>
       </div>
     </div>

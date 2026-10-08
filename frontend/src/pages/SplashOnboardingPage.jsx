@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, hasStoredLanguage } from '../context/AuthContext';
+import { t } from '../i18n/strings';
 
 export default function SplashOnboardingPage() {
   const { language, setLanguage, isAuthenticated } = useAuth();
-  // Stitch design pre-selects Marathi for first-time visitors; afterwards show the saved choice.
+  // Pre-select Marathi for first-time visitors; afterwards show the saved choice.
   const [selectedLang, setSelectedLang] = useState(() => (hasStoredLanguage() ? language : 'mr'));
   const [loading, setLoading] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const navigate = useNavigate();
+
+  // Translate using the *selected* language (preview before confirming)
+  const ts = (key) => t(selectedLang, key);
 
   const handleGetStarted = async () => {
     setLoading(true);
@@ -39,18 +43,16 @@ export default function SplashOnboardingPage() {
         <span className="text-headline-xl font-headline-xl tracking-tight text-on-surface uppercase mb-space-xs">
           Fasalytics
         </span>
+        {/* Tagline shown in the selected language — no bilingual mixing */}
         <p className="text-body-lg font-body-lg text-on-surface-variant max-w-xs">
-          Smarter selling decisions for farmers
-        </p>
-        <p className="text-label-lg font-label-lg text-secondary mt-1">
-          शेतकऱ्यांसाठी हुशार विक्री निर्णय
+          {ts('onboarding.tagline')}
         </p>
       </div>
 
       {/* Interactive Language & Region Selection Cards */}
       <div className="flex flex-col gap-space-sm px-gutter my-space-lg">
         <span className="text-label-md font-label-md text-on-surface-variant uppercase tracking-wider text-center mb-1">
-          Select Preferred Language / भाषा निवडा
+          {ts('onboarding.selectLanguage')}
         </span>
 
         {/* English Option */}
@@ -73,8 +75,9 @@ export default function SplashOnboardingPage() {
               EN
             </div>
             <div>
-              <h4 className="text-label-lg font-label-lg text-on-surface">English</h4>
-              <p className="text-body-sm text-on-surface-variant">Default App Language</p>
+              {/* Language option labels are always shown in their own language — intentional */}
+              <h4 className="text-label-lg font-label-lg text-on-surface">{t('en', 'onboarding.en.label')}</h4>
+              <p className="text-body-sm text-on-surface-variant">{t('en', 'onboarding.en.description')}</p>
             </div>
           </div>
           <span
@@ -109,8 +112,8 @@ export default function SplashOnboardingPage() {
               हि
             </div>
             <div>
-              <h4 className="text-label-lg font-label-lg text-on-surface">हिन्दी (Hindi)</h4>
-              <p className="text-body-sm text-on-surface-variant">बाजार भाव और सलाह हिंदी में</p>
+              <h4 className="text-label-lg font-label-lg text-on-surface">{t('hi', 'onboarding.hi.label')}</h4>
+              <p className="text-body-sm text-on-surface-variant">{t('hi', 'onboarding.hi.description')}</p>
             </div>
           </div>
           <span
@@ -145,8 +148,8 @@ export default function SplashOnboardingPage() {
               म
             </div>
             <div>
-              <h4 className="text-label-lg font-label-lg">मराठी (Marathi)</h4>
-              <p className="text-body-sm opacity-80">बाजार भाव, हवामान व AI सल्ले</p>
+              <h4 className="text-label-lg font-label-lg">{t('mr', 'onboarding.mr.label')}</h4>
+              <p className="text-body-sm opacity-80">{t('mr', 'onboarding.mr.description')}</p>
             </div>
           </div>
           <span
@@ -172,11 +175,11 @@ export default function SplashOnboardingPage() {
           {loading ? (
             <>
               <span className="material-symbols-outlined animate-spin">progress_activity</span>
-              <span>Loading Copilot...</span>
+              <span>{ts('onboarding.loading')}</span>
             </>
           ) : (
             <>
-              <span>Get Started / सुरू करा</span>
+              <span>{ts('onboarding.getStarted')}</span>
               <span className="material-symbols-outlined">arrow_forward</span>
             </>
           )}
@@ -185,7 +188,7 @@ export default function SplashOnboardingPage() {
           <p className="text-body-sm text-center text-error" role="alert">{saveError}</p>
         )}
         <p className="text-body-sm text-center text-on-surface-variant mt-2">
-          By continuing, you agree to receive Mandi price alerts via SMS.
+          {ts('onboarding.consent')}
         </p>
       </div>
     </div>

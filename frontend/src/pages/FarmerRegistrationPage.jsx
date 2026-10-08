@@ -36,7 +36,7 @@ export default function FarmerRegistrationPage() {
         className="text-on-surface-variant text-body-sm font-bold flex items-center justify-center gap-1"
       >
         <span className="material-symbols-outlined text-[16px]">logout</span>
-        <span>Use a different account</span>
+        <span>{t(language, 'auth.useDifferentAccount')}</span>
       </button>
     </div>
   );
