@@ -47,6 +47,10 @@ temp/
 
 # Downloaded mandi datasets (CSV/raw/manifests from npm run ceda:export)
 backend/data/
+frontend/.location-source/
+
+# Database dumps & backups
+*.dump
 
 # PostgreSQL Docker Volumes
 postgres_data/

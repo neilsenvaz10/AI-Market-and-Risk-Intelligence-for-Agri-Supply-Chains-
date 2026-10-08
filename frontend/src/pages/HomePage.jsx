@@ -358,7 +358,16 @@ export default function HomePage() {
                 );
               })}
             </div>
-            <p className="font-body-sm text-[10px] text-on-surface-variant mt-3">
+            <div className="mt-3 pt-2.5 border-t border-outline-variant/30 flex items-center justify-between text-xs">
+              <span className="text-[11px] text-on-surface-variant flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px] text-primary">public</span>
+                National Benchmarks (Wheat, Soybean, Pulses)
+              </span>
+              <Link to="/mandis" className="text-[11px] font-bold text-primary hover:underline">
+                View AGMARKNET →
+              </Link>
+            </div>
+            <p className="font-body-sm text-[10px] text-on-surface-variant mt-2">
               {t(language, 'mandiFeed.source', { source: priceSources.join(', ') })}
             </p>
           </>

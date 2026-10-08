@@ -65,6 +65,28 @@ export function createMandiController({ mandiService = defaultMandiService, pipe
       res.status(200).json({ status: 'success', count: commodities.length, data: commodities });
     }),
 
+    getCommodityReports: handle(async (req, res) => {
+      const filters = {
+        commodity: req.query.commodity,
+        group: req.query.group,
+        startDate: req.query.startDate,
+        endDate: req.query.endDate,
+        source: req.query.source,
+        limit: req.query.limit ? parseInt(req.query.limit, 10) : 100,
+        offset: req.query.offset ? parseInt(req.query.offset, 10) : 0,
+      };
+      const { rows, total, meta } = await mandiService.getCommodityDailyReports(filters);
+      res.status(200).json({
+        status: 'success',
+        count: rows.length,
+        total,
+        limit: filters.limit,
+        offset: filters.offset,
+        meta,
+        data: rows,
+      });
+    }),
+
     getSyncStatus: handle(async (req, res) => {
       res.status(200).json({ status: 'success', data: await mandiService.getPipelineStatus() });
     }),

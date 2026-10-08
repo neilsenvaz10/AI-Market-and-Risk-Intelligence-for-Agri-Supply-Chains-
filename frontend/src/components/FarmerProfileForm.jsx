@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { COMMON_CROPS, INDIAN_STATES, QUANTITY_UNITS, formatPhone } from '../constants/profile';
+import { COMMON_CROPS, QUANTITY_UNITS, formatPhone } from '../constants/profile';
+import LocationFields from './LocationFields';
+import { validateLocation } from '../services/locationService';
 import { EMPTY_PROFILE, toPayload, validateProfile } from '../utils/profileValidation';
 import { LANGUAGES } from '../i18n/languages';
 import { Field, inputClass } from './FormField';
@@ -72,17 +74,32 @@ export default function FarmerProfileForm({
     setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
+  const setLocation = (changes) => {
+    setValues((prev) => ({ ...prev, ...changes }));
+    setErrors((prev) => ({ ...prev, ...Object.fromEntries(Object.keys(changes).map((key) => [key, undefined])) }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
     setFormError(null);
-    const { valid, errors: validationErrors } = validateProfile(values);
-    if (!valid) {
-      setErrors(validationErrors);
-      return;
-    }
+    const validationErrors = validateProfile(values);
+    setErrors(validationErrors);
+    if (Object.keys(validationErrors).length) return;
     setSubmitting(true);
     try {
-      await onSubmit(toPayload(values));
+      let location;
+      try {
+        location = await validateLocation(values, initialValues);
+      } catch {
+        setFormError(t(language, 'location.loadError'));
+        return;
+      }
+      if (Object.keys(location.errors).length) {
+        setErrors(Object.fromEntries(Object.entries(location.errors).map(([key, message]) => [key, t(language, message)])));
+        return;
+      }
+      await onSubmit({ ...toPayload(values), village: location.village });
     } catch (err) {
       if (err.details) setErrors(err.details);
       setFormError(err.message || 'Could not save your profile. Please try again.');
@@ -97,7 +114,8 @@ export default function FarmerProfileForm({
   }));
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-space-md">
+    <form onSubmit={handleSubmit} noValidate aria-busy={submitting} className="flex flex-col gap-space-md">
+      <fieldset disabled={submitting} className="flex flex-col gap-space-md min-w-0">
       <Field label={t(language, 'profile.form.fullName')} htmlFor="fullName" error={errors.fullName}>
         <span className="material-symbols-outlined text-on-surface-variant text-[20px] pl-1">person</span>
         <input id="fullName" className={inputClass} value={values.fullName} onChange={set('fullName')}
@@ -115,25 +133,7 @@ export default function FarmerProfileForm({
         </span>
       </Field>
 
-      <Field label={t(language, 'profile.form.state')} htmlFor="state" error={errors.state}>
-        <span className="material-symbols-outlined text-on-surface-variant text-[20px] pl-1">map</span>
-        <select id="state" className={`${inputClass} appearance-none cursor-pointer`} value={values.state} onChange={set('state')}>
-          <option value="">{t(language, 'profile.form.selectState')}</option>
-          {INDIAN_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <span className="material-symbols-outlined text-on-surface-variant text-[20px] pointer-events-none">expand_more</span>
-      </Field>
-
-      <div className="grid grid-cols-2 gap-space-sm">
-        <Field label={t(language, 'profile.form.district')} htmlFor="district" error={errors.district}>
-          <input id="district" className={inputClass} value={values.district} onChange={set('district')}
-            placeholder="e.g. Nashik" maxLength={64} />
-        </Field>
-        <Field label={t(language, 'profile.form.village')} htmlFor="village" error={errors.village} optional>
-          <input id="village" className={inputClass} value={values.village} onChange={set('village')}
-            placeholder="e.g. Lasalgaon" maxLength={100} />
-        </Field>
-      </div>
+      <LocationFields values={values} initialValues={initialValues} errors={errors} language={language} onChange={setLocation} />
 
       <Field label={t(language, 'profile.form.primaryCrop')} htmlFor="primaryCrop" error={errors.primaryCrop}>
         <span className="material-symbols-outlined text-on-surface-variant text-[20px] pl-1">eco</span>
@@ -201,6 +201,7 @@ export default function FarmerProfileForm({
           )}
         </button>
       </div>
+      </fieldset>
     </form>
   );
 }

@@ -14,6 +14,7 @@
     "test:db": "node scripts/test-db.js",
     "mandi:sync": "node scripts/mandi-sync.js",
     "ceda:export": "node scripts/ceda-export.js",
+    "agmarknet:import": "node scripts/import-agmarknet-csv.js",
     "migrate:rehearse": "node scripts/rehearse-migration.js",
     "admin:claim": "node scripts/firebase-admin-claim.js",
     "live:preflight": "node scripts/live-preflight.js",

@@ -158,6 +158,12 @@ export async function getCommodities() {
   return await fetchWithFallback('/api/mandi/commodities');
 }
 
+export async function getCommodityDailyReports(filters = {}) {
+  const query = new URLSearchParams(filters).toString();
+  const endpoint = `/api/mandi/reports/daily${query ? `?${query}` : ''}`;
+  return await fetchWithFallback(endpoint);
+}
+
 export async function getPipelineStatus() {
   return await fetchWithFallback('/api/mandi/sync/status');
 }
@@ -183,6 +189,7 @@ export default {
   getLatestMandiPrices,
   getMandiPriceHistory,
   getCommodities,
+  getCommodityDailyReports,
   getPipelineStatus,
   triggerMandiSync,
   getMandiQualityReport,

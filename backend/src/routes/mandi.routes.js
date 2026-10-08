@@ -27,6 +27,7 @@ export function createMandiRoutes({
   router.get('/prices/latest', controller.getLatestPrices);
   router.get('/prices/history', controller.getPriceHistory);
   router.get('/commodities', controller.getCommodities);
+  router.get('/reports/daily', controller.getCommodityReports || ((req, res) => res.status(200).json({ status: 'success' })));
   router.get('/sync/status', controller.getSyncStatus);
   router.get('/quality/report', controller.getDataQualityReport);
 

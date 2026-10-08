@@ -2,16 +2,17 @@
 
 **Date:** 2026-10-08 · **Repository:** `D:\Projects\AI-Market-and-Risk-Intelligence-for-Agri-Supply-Chains-` · **Branch:** `integration/phase3-on-d` · **HEAD:** `49155af` (merge commit, completed by the owner)
 
-> **Summary.** Every defect found by the earlier Phase 3 audit was reproduced on the D: code, repaired, and covered by regression tests. Three more defects turned up during the work and were also fixed: the validator misread DD/MM dates, reporting dates shifted by a day through the database driver, and `seed.sql` had mojibake. Following migration rehearsal on an isolated clone, migrations 004 and 005 were approved and applied to the local PostgreSQL development database `fasalytics`. Post-migration verification confirmed all tables, constraints, indexes, and views exist, Phase 2 farmer data is intact, and all Express mandi GET endpoints return HTTP 200. **The database and API layers are READY.** Live source verification remains **BLOCKED**: there are no CEDA or data.gov.in API keys, and `api.data.gov.in` refuses connections from this network. No genuine mandi record has been ingested yet.
+> **Summary.** Every defect found by the earlier Phase 3 audit was reproduced on the D: code, repaired, and covered by regression tests. Three more defects turned up during the work and were also fixed: the validator misread DD/MM dates, reporting dates shifted by a day through the database driver, and `seed.sql` had mojibake. Following migration rehearsal on an isolated clone, migrations 004 and 005 were approved and applied to the local PostgreSQL development database `fasalytics`. Post-migration verification confirmed all tables, constraints, indexes, and views exist, Phase 2 farmer data is intact, and all Express mandi GET endpoints return HTTP 200. **The database and API layers are READY.** A controlled live pilot of CEDA historical data (Oct 1–7, 2025, Onion in Nashik) was executed against an isolated test database (`fasalytics_test_live_ceda_pilot`): 79 genuine records were normalized, validated, persisted, queried via Express APIs, and verified via end-to-end trace (`GENUINE_TRACE_PASS`) before the test DB was dropped. Live data.gov.in access remains blocked (no API key; network TCP refusal). The development database `fasalytics` remains completely clean (0 mandi records).
 
 | Final status | |
 |---|---|
 | PHASE 3 DATABASE LAYER | **READY**: migrations 002, 003_phase2, 004, 005 applied; all tables, constraints, indexes and views verified; Phase 2 farmer data preserved |
 | PHASE 3 API LAYER | **READY**: all mandi GET endpoints return HTTP 200; error handling, rate limiting, and fail-closed admin authorization verified |
-| PHASE 3 REAL DATA INGESTION | **BLOCKED**: no credentials for either source (`CEDA_API_KEY`, `DATA_GOV_IN_API_KEY`); `api.data.gov.in` unreachable from this network |
-| PHASE 3 OVERALL | **CODE/SCHEMA READY; LIVE DATA BLOCKED** |
-| PHASE 4 FORECASTING READINESS | **NOT READY**: zero genuine historical records |
-| PHASE 5 RECOMMENDATION READINESS | **NOT READY**: zero genuine current records |
+| PHASE 3 CEDA HISTORICAL PILOT | **VERIFIED**: CEDA API key authenticated (HTTP 200); 79 genuine records verified end-to-end in isolated DB (`GENUINE_TRACE_PASS`); historical coverage confirmed 2021-10-01 to 2025-10-21 |
+| PHASE 3 DATA.GOV.IN INGESTION | **BLOCKED**: `DATA_GOV_IN_API_KEY` not configured; `api.data.gov.in` unreachable from this network |
+| PHASE 3 OVERALL | **CODE/SCHEMA READY; CEDA PILOT VERIFIED; DEV DB UNTOUCHED** |
+| PHASE 4 FORECASTING READINESS | **PILOT VERIFIED; READY FOR SUPERVISED HISTORICAL CEDA INGESTION** |
+| PHASE 5 RECOMMENDATION READINESS | **PENDING LIVE DATA INGESTION (data.gov.in blocked)** |
 
 ---
 
@@ -74,12 +75,12 @@ Not fixed, report only: duplicate translation keys `header.status.*` / `auth.*` 
 
 | | CEDA (Ashoka University) | AGMARKNET (agmarknet.gov.in) | data.gov.in |
 |---|---|---|---|
-| Contract verification | Official OpenAPI from `api.ceda.ashoka.edu.in/documentation/` (5 endpoints, Bearer auth, no pagination, no variety). Units from the CEDA portal: ₹/quintal, tonnes. | "Agmarknet 2.0" is a JavaScript-only site (HTTP 200) with no documented public API. Not scraped. | Resource `9ef84268-d588-465a-a308-a864a43d0070` confirmed on www.data.gov.in as "Current Daily Price of Various Commodities from Various Markets (Mandi)", DMI, generated through AGMARKNET. Units are **not stated** in the metadata. |
-| Credentials | `CEDA_API_KEY` **not configured** | — | `DATA_GOV_IN_API_KEY` **not configured** |
-| Connectivity | API reachable; official route → **401** without a token; old route → **404** | Site reachable | **`api.data.gov.in` refuses connections** (curl exit 7); www.data.gov.in reachable |
+| Contract verification | Official OpenAPI from `api.ceda.ashoka.edu.in/documentation/` (Bearer auth, no pagination, no variety). Units: ₹/quintal, tonnes. Response structure wrapped in `{ output: { data: [...] } }`. `POST /markets` times out upstream; prices/quantities work directly. | "Agmarknet 2.0" is a JavaScript-only site (HTTP 200) with no documented public API. Not scraped. | Resource `9ef84268-d588-465a-a308-a864a43d0070` confirmed on www.data.gov.in as "Current Daily Price of Various Commodities from Various Markets (Mandi)", DMI, generated through AGMARKNET. Units are **not stated** in the metadata. |
+| Credentials | `CEDA_API_KEY` **CONFIGURED & VERIFIED** (Bearer token accepted, HTTP 200) | — | `DATA_GOV_IN_API_KEY` **not configured** |
+| Connectivity | **CONNECTED** (HTTP 200 on commodities, geographies, prices, quantities) | Site reachable | **`api.data.gov.in` refuses connections** (TCP port 443 refused); www.data.gov.in reachable |
 | Provenance | Records labelled `CEDA` with source IDs | Data reaches FASALYTICS only via data.gov.in or CEDA, labelled with that source | Records labelled `DATA_GOV_IN` |
-| Historical coverage / latest report date | none (BLOCKED) | — | none (BLOCKED) |
-| Sample record count | **0** | 0 | **0** |
+| Historical coverage / latest report date | **2021-10-01 through 2025-10-21** verified (daily prices & quantities). 2026 data not yet available in CEDA. | — | none (BLOCKED) |
+| Pilot / Sample record count | **79 genuine records verified** in isolated test DB `fasalytics_test_live_ceda_pilot` (trace: `GENUINE_TRACE_PASS`); **0** in dev DB | 0 | **0** |
 
 ## D. Database
 

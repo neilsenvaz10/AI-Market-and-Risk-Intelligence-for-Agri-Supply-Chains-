@@ -11,7 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../database/migrations');
-const PHASE3 = ['004_mandi_data_pipeline.sql', '005_mandi_pipeline_integrity.sql'];
+const PHASE3 = ['004_mandi_data_pipeline.sql', '005_mandi_pipeline_integrity.sql', '006_agmarknet_commodity_reports.sql'];
 const PHASE2_TABLES = ['farmers', 'farmer_identities', 'schema_migrations'];
 
 // Comments and string literals are removed so only executable SQL is scanned.
@@ -39,7 +39,7 @@ for (const file of PHASE3) {
     for (const statement of statements(sql)) {
       const write = statement.match(/^(?:INSERT\s+INTO|UPDATE)\s+("?[\w.]+"?)/i);
       if (write) {
-        assert.match(write[1], /^(mandi_prices|mandi_sources|mandis|commodities|mandi_source_sync_state)$/i,
+        assert.match(write[1], /^(mandi_prices|mandi_sources|mandis|commodities|mandi_source_sync_state|commodity_daily_reports)$/i,
           `unexpected write target: ${statement.slice(0, 80)}`);
       }
     }

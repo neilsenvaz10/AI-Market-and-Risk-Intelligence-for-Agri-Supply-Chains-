@@ -54,7 +54,7 @@ async function start({ lookupUser, rateMax = 100, timeoutMs = 200 } = {}) {
     syncRateLimiter: createRateLimiter({ windowMs: 60_000, max: rateMax }),
     controller: {
       getMandis() {}, getMandiDetails() {}, getLatestPrices() {}, getPriceHistory() {}, getCommodities() {},
-      getSyncStatus() {}, getDataQualityReport() {},
+      getCommodityReports() {}, getSyncStatus() {}, getDataQualityReport() {},
       triggerSync: (req, res) => { state.controllerCalls += 1; res.json({ status: 'success', uid: req.auth.uid }); },
     },
   }));

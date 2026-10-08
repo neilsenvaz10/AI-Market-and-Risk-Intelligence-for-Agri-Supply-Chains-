@@ -12,7 +12,7 @@ export const EMPTY_PROFILE = {
 };
 
 const NAME_RE = /^[\p{L}\p{M}][\p{L}\p{M}\s.'-]*$/u;
-const PLACE_RE = /^[\p{L}\p{M}\p{N}][\p{L}\p{M}\p{N}\s.,'()-]*$/u;
+const PLACE_RE = /^[\p{L}\p{M}\p{N}][\p{L}\p{M}\p{N}\s.,'()/&@+[\]"-]*$/u;
 const CROP_RE = /^[\p{L}\p{M}][\p{L}\p{M}\s.'()/-]*$/u;
 
 /** Client-side checks mirroring backend/src/validators/farmer.validator.js */

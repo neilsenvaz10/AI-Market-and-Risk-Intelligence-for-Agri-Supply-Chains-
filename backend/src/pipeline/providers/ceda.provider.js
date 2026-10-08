@@ -53,18 +53,41 @@ export class CedaClient {
 
   async listCommodities({ signal } = {}) {
     const data = await this.#call('GET', '/agmarknet/commodities', undefined, signal);
-    return Array.isArray(data?.commodities) ? data.commodities : [];
+    const raw = data?.output?.data || data?.commodities || data?.data || [];
+    if (!Array.isArray(raw)) return [];
+    return raw.map((c) => ({ id: c.id ?? c.commodity_id, name: c.name ?? c.commodity_name }));
   }
 
   async listGeographies({ signal } = {}) {
     const data = await this.#call('GET', '/agmarknet/geographies', undefined, signal);
-    return Array.isArray(data?.geographies) ? data.geographies : [];
+    if (Array.isArray(data?.geographies)) return data.geographies;
+    const raw = data?.output?.data || data?.data || [];
+    if (!Array.isArray(raw)) return [];
+    const stateMap = new Map();
+    for (const r of raw) {
+      const sId = r.state_id ?? r.census_state_id;
+      const sName = r.state_name ?? r.census_state_name;
+      const dId = r.district_id ?? r.census_district_id;
+      const dName = r.district_name ?? r.census_district_name;
+      if (!stateMap.has(sId)) {
+        stateMap.set(sId, { state_id: sId, state_name: sName, districts: [] });
+      }
+      if (dId && dName) {
+        stateMap.get(sId).districts.push({ district_id: dId, district_name: dName });
+      }
+    }
+    return Array.from(stateMap.values());
   }
 
   async listMarkets({ commodityId, stateId, districtId, indicator = 'price', signal }) {
-    const data = await this.#call('POST', '/agmarknet/markets',
-      { commodity_id: commodityId, state_id: stateId, district_id: districtId, indicator }, signal);
-    return Array.isArray(data?.data) ? data.data : [];
+    try {
+      const data = await this.#call('POST', '/agmarknet/markets',
+        { commodity_id: commodityId, state_id: stateId, district_id: districtId, indicator }, signal);
+      const raw = data?.output?.data || data?.data || [];
+      return Array.isArray(raw) ? raw : [];
+    } catch {
+      return [];
+    }
   }
 
   async getPrices({ commodityId, stateId, districtIds, marketIds, fromDate, toDate, signal }) {
@@ -74,7 +97,8 @@ export class CedaClient {
       ...(marketIds?.length ? { market_id: marketIds } : {}),
       from_date: fromDate, to_date: toDate,
     }, signal);
-    return Array.isArray(data?.data) ? data.data : [];
+    const raw = data?.output?.data || data?.data || [];
+    return Array.isArray(raw) ? raw : [];
   }
 
   async getQuantities({ commodityId, stateId, districtIds, marketIds, fromDate, toDate, signal }) {
@@ -84,7 +108,8 @@ export class CedaClient {
       ...(marketIds?.length ? { market_id: marketIds } : {}),
       from_date: fromDate, to_date: toDate,
     }, signal);
-    return Array.isArray(data?.data) ? data.data : [];
+    const raw = data?.output?.data || data?.data || [];
+    return Array.isArray(raw) ? raw : [];
   }
 }
 
@@ -126,7 +151,7 @@ export function buildCedaRecords(priceRows, quantityRows, ctx) {
       is_sample_data: false,
       state: ctx.stateName,
       district: ctx.districtName,
-      mandi_name: ctx.marketNames.get(String(row.market_id)) ?? null,
+      mandi_name: ctx.marketNames?.get(String(row.market_id)) ?? (row.market_name || (ctx.districtName ? `${ctx.districtName} APMC (${row.market_id})` : null)),
       commodity_name: ctx.commodityName,
       variety: null,
       grade: null,
@@ -201,12 +226,13 @@ export class CedaProvider extends BaseMandiProvider {
     const from = fromDate || this.HISTORICAL_START;
     const to = toDate || this.HISTORICAL_END;
     const scope = await this.resolveScope({ commodity, state, district, signal });
-    const marketIds = scope.markets.map((m) => m.market_id);
-    const marketNames = new Map(scope.markets.map((m) => [String(m.market_id), m.market_name]));
+    const marketIds = (scope.markets || []).map((m) => m.market_id).filter(Boolean);
+    const marketNames = new Map((scope.markets || []).map((m) => [String(m.market_id), m.market_name]));
     const records = [];
     for (const window of splitDateRange(from, to, this.windowDays)) {
       const request = {
-        commodityId: scope.commodityId, stateId: scope.stateId, districtIds: [scope.districtId], marketIds,
+        commodityId: scope.commodityId, stateId: scope.stateId, districtIds: [scope.districtId],
+        ...(marketIds.length ? { marketIds } : {}),
         fromDate: window.from, toDate: window.to, signal,
       };
       const prices = await this.client.getPrices(request);

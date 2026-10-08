@@ -15,7 +15,7 @@ export function Field({ label, htmlFor, error, optional, children }) {
       </label>
       <div
         className={`flex items-center gap-2 bg-surface-container-lowest p-2 rounded-xl shadow-sm border-2 transition-all ${
-          error ? 'border-error' : 'border-transparent focus-within:border-secondary'
+          error ? 'border-error' : 'border-outline-variant/50 focus-within:border-secondary'
         }`}
       >
         {children}
@@ -31,4 +31,4 @@ export function Field({ label, htmlFor, error, optional, children }) {
 }
 
 export const inputClass =
-  'flex-grow min-w-0 bg-transparent text-body-md text-on-surface placeholder:text-on-surface-variant outline-none px-2 py-1.5';
+  'flex-1 w-full min-w-0 bg-transparent text-body-md text-on-surface placeholder:text-on-surface-variant outline-none px-2 py-1.5';

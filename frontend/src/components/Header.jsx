@@ -27,7 +27,7 @@ export default function Header() {
 
   return (
     <header className="fixed top-0 inset-x-0 z-50 bg-primary text-on-primary pt-safe shadow-[0_1px_8px_rgba(0,38,13,0.15)]">
-      <div className="h-16 px-gutter flex items-center justify-between">
+      <div className="h-16 max-w-6xl mx-auto px-4 sm:px-gutter flex items-center justify-between gap-2">
         <div className="flex items-center gap-space-sm">
           <Link to="/" className="text-headline-md font-headline-md tracking-tight uppercase">
             Fasalytics
@@ -35,7 +35,7 @@ export default function Header() {
           {/* Subtle service status indicator using Stitch pill design */}
           <span
             title={`Backend Service: ${backendStatus}`}
-            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide ${
+            className={`hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide ${
               backendStatus === 'connected'
                 ? 'bg-secondary-container text-on-secondary-container'
                 : backendStatus === 'checking'
@@ -59,7 +59,7 @@ export default function Header() {
               : t(language, 'header.status.offline')}
           </span>
         </div>
-        <div className="flex items-center gap-space-md">
+        <div className="flex items-center gap-2 sm:gap-space-md">
           <div className="flex bg-primary-container rounded-full p-1 text-xs">
             {LANGUAGES.map((lang) => (
               <button

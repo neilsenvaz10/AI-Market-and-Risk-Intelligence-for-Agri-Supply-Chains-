@@ -17,7 +17,7 @@ export const LANGUAGES = ['en', 'hi', 'mr'];
 
 // Letters in any script (incl. Devanagari marks), spaces and common name punctuation.
 const NAME_PATTERN = /^[\p{L}\p{M}][\p{L}\p{M}\s.'-]*$/u;
-const PLACE_PATTERN = /^[\p{L}\p{M}\p{N}][\p{L}\p{M}\p{N}\s.,'()-]*$/u;
+const PLACE_PATTERN = /^[\p{L}\p{M}\p{N}][\p{L}\p{M}\p{N}\s.,'()/&@+[\]"-]*$/u;
 const CROP_PATTERN = /^[\p{L}\p{M}][\p{L}\p{M}\s.'()/-]*$/u;
 
 const MAX_QUANTITY = 10_000_000; // fits NUMERIC(12,2)

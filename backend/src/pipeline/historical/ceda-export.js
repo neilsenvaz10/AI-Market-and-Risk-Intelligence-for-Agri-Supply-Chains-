@@ -75,8 +75,8 @@ export async function runCedaExport({
     scope: { commodity: scope.commodityName, commodityId: scope.commodityId, state: scope.stateName, stateId: scope.stateId,
       district: scope.districtName, districtId: scope.districtId, markets: scope.markets },
   });
-  const marketIds = scope.markets.map((m) => m.market_id);
-  const marketNames = new Map(scope.markets.map((m) => [String(m.market_id), m.market_name]));
+  const marketIds = (scope.markets || []).map((m) => m.market_id).filter(Boolean);
+  const marketNames = new Map((scope.markets || []).map((m) => [String(m.market_id), m.market_name]));
   const summary = { tasksPlanned: 0, tasksCompleted: 0, tasksSkipped: 0, rowsWritten: 0, rowsValid: 0, rowsRejected: 0,
     imported: { inserted: 0, updated: 0, unchanged: 0, failed: 0 }, stoppedReason: null, manifestPath };
 
@@ -96,7 +96,8 @@ export async function runCedaExport({
     try {
       await guard.assertSpace(`before task ${id}`);
       await manifest.update(id, { status: 'running', window });
-      const request = { commodityId: scope.commodityId, stateId: scope.stateId, districtIds: [scope.districtId], marketIds,
+      const request = { commodityId: scope.commodityId, stateId: scope.stateId, districtIds: [scope.districtId],
+        ...(marketIds.length ? { marketIds } : {}),
         fromDate: window.from, toDate: window.to, signal };
       const prices = await provider.client.getPrices(request);
       const quantities = await provider.client.getQuantities(request);

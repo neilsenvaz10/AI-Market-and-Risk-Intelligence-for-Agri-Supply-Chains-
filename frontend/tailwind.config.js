@@ -1,9 +1,9 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
+  content: {
+    relative: true,
+    files: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  },
   darkMode: "class",
   theme: {
     extend: {
@@ -72,14 +72,14 @@ export default {
         "space-md": "1rem"
       },
       fontFamily: {
-        "label-lg": ["Noto Sans Devanagari"],
-        "body-sm": ["Inter"],
-        "headline-xl": ["Barlow Condensed"],
-        "body-md": ["Inter"],
-        "headline-lg": ["Barlow Condensed"],
-        "label-md": ["Noto Sans Devanagari"],
-        "headline-md": ["Barlow Condensed"],
-        "body-lg": ["Inter"]
+        "label-lg": ["Noto Sans Devanagari", "Inter", "sans-serif"],
+        "body-sm": ["Inter", "Noto Sans Devanagari", "sans-serif"],
+        "headline-xl": ["Barlow Condensed", "Noto Sans Devanagari", "sans-serif"],
+        "body-md": ["Inter", "Noto Sans Devanagari", "sans-serif"],
+        "headline-lg": ["Barlow Condensed", "Noto Sans Devanagari", "sans-serif"],
+        "label-md": ["Noto Sans Devanagari", "Inter", "sans-serif"],
+        "headline-md": ["Barlow Condensed", "Noto Sans Devanagari", "sans-serif"],
+        "body-lg": ["Inter", "Noto Sans Devanagari", "sans-serif"]
       },
       fontSize: {
         "label-lg": ["15px", { "lineHeight": "22px", "fontWeight": "500" }],

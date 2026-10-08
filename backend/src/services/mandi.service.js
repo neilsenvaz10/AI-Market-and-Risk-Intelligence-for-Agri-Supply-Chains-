@@ -217,6 +217,99 @@ export class MandiService {
     return result.rows;
   }
 
+  /**
+   * Aggregated commodity-level daily reports (macro/national prices, arrivals, MSP)
+   * from official sources such as AGMARKNET.
+   */
+  async getCommodityDailyReports(filters = {}) {
+    const conditions = [];
+    const values = [];
+
+    const add = (sql, value) => {
+      values.push(value);
+      conditions.push(sql.replaceAll('?', `$${values.length}`));
+    };
+
+    if (filters.commodity) {
+      add('(UPPER(r.commodity_code) = UPPER(?) OR UPPER(r.commodity_name) = UPPER(?))', filters.commodity);
+    }
+    if (filters.group) {
+      add('LOWER(r.commodity_group) = LOWER(?)', filters.group);
+    }
+    if (filters.source) {
+      add('r.source = ?', filters.source);
+    }
+    if (filters.startDate) {
+      add('r.report_date >= ?::date', filters.startDate);
+    }
+    if (filters.endDate) {
+      add('r.report_date <= ?::date', filters.endDate);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    values.push(filters.limit ?? 100, filters.offset ?? 0);
+
+    const sql = `
+      WITH ranked AS (
+        SELECT r.*,
+               COALESCE(s.label, r.source) AS source_label,
+               LAG(r.modal_price) OVER (PARTITION BY r.commodity_name ORDER BY r.report_date ASC) AS prev_modal_price,
+               LAG(r.report_date) OVER (PARTITION BY r.commodity_name ORDER BY r.report_date ASC) AS prev_report_date,
+               COUNT(*) OVER () AS total_count
+        FROM commodity_daily_reports r
+        LEFT JOIN mandi_sources s ON s.code = r.source
+        ${whereClause}
+      )
+      SELECT *
+      FROM ranked
+      ORDER BY report_date DESC, commodity_group ASC, commodity_name ASC
+      LIMIT $${values.length - 1} OFFSET $${values.length}`;
+
+    const result = await this.pool.query(sql, values);
+    const rows = result.rows.map((row) => {
+      const modal = toNumber(row.modal_price);
+      const prev = toNumber(row.prev_modal_price);
+      let trendPercent = null;
+      let trendDirection = 'none';
+      if (modal !== null && prev !== null && prev > 0) {
+        trendPercent = Number((((modal - prev) / prev) * 100).toFixed(1));
+        trendDirection = trendPercent > 0 ? 'up' : trendPercent < 0 ? 'down' : 'stable';
+      }
+      return {
+        id: row.id,
+        source: row.source,
+        source_label: row.source_label,
+        commodity_code: row.commodity_code,
+        commodity_name: row.commodity_name,
+        commodity_group: row.commodity_group,
+        report_date: row.report_date,
+        modal_price: modal,
+        price_unit: row.price_unit,
+        arrivals_quantity: toNumber(row.arrivals_quantity),
+        arrival_unit: row.arrival_unit,
+        msp: toNumber(row.msp),
+        msp_season: row.msp_season,
+        geographic_level: row.geographic_level,
+        previous_modal_price: prev,
+        previous_report_date: row.prev_report_date,
+        trend_percent: trendPercent,
+        trend_direction: trendDirection,
+        updated_at: row.updated_at,
+      };
+    });
+
+    const dates = rows.map((r) => r.report_date).filter(Boolean);
+    const meta = {
+      total_rows: rows.length,
+      latest_reporting_date: dates.length ? dates.reduce((a, b) => (a > b ? a : b)) : null,
+      earliest_reporting_date: dates.length ? dates.reduce((a, b) => (a < b ? a : b)) : null,
+      source: 'AGMARKNET',
+      geographic_level: 'NATIONAL_AGGREGATE',
+    };
+
+    return { rows, total: Number(result.rows[0]?.total_count ?? 0), meta };
+  }
+
   async getPipelineStatus() {
     const [runs, sources, counts] = await Promise.all([
       this.pool.query(
