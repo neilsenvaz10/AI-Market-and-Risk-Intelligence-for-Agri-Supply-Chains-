@@ -1,0 +1,30 @@
+{
+  "name": "fasalytics-backend",
+  "version": "1.0.0",
+  "description": "Fasalytics Node.js/Express API Backend",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch --watch-path=src --watch-path=.env src/server.js",
+    "migrate": "node scripts/migrate.js",
+    "migrate:status": "node scripts/migrate.js --status",
+    "test": "npm run test:unit && npm run test:db",
+    "test:unit": "node --test test/*.test.js",
+    "test:db": "node scripts/test-db.js",
+    "mandi:sync": "node scripts/mandi-sync.js",
+    "ceda:export": "node scripts/ceda-export.js",
+    "migrate:rehearse": "node scripts/rehearse-migration.js",
+    "admin:claim": "node scripts/firebase-admin-claim.js",
+    "live:preflight": "node scripts/live-preflight.js",
+    "live:db": "node scripts/live-test-db.js",
+    "trace:record": "node scripts/trace-record.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "firebase-admin": "^13.10.0",
+    "pg": "^8.13.3"
+  }
+}
