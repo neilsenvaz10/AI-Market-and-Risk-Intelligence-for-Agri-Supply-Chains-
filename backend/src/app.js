@@ -10,6 +10,7 @@ import createForecastRoutes from './routes/forecast.routes.js';
 import createCopilotRoutes from './routes/copilot.routes.js';
 import createFarmerPhase8Routes from './routes/farmerPhase8.routes.js';
 import createAdminPhase8Routes from './routes/adminPhase8.routes.js';
+import createAssistantRoutes from './routes/assistant.routes.js';
 import { requireAuth as defaultRequireAuth } from './middleware/auth.js';
 import { createRequireAdminClaim } from './middleware/ingestionAuth.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
@@ -32,6 +33,7 @@ export function createApp({
   welcomeEmail = createDefaultWelcomeEmailService(),
   mandiRoutesOptions = {},
   copilotRoutesOptions = {},
+  assistantRoutesOptions = {},
 } = {}) {
   const app = express();
   app.locals.welcomeEmail = welcomeEmail;
@@ -61,6 +63,12 @@ export function createApp({
         mlHealth: '/api/health/ml',
         session: '/api/auth/session',
         farmerProfile: '/api/farmers/me',
+        assistant: {
+          capabilities: '/api/assistant/capabilities',
+          transcribe: 'POST /api/assistant/transcribe?language=en|hi|mr (audio body)',
+          speak: 'POST /api/assistant/speak',
+          chat: 'POST /api/assistant/chat',
+        },
         forecast: {
           byCommodityAndMandi: '/api/forecast/:commodity/:mandi',
           query: '?horizon=1..7&modelVersion=<version>&includeSample=false&order=ASC|DESC',
@@ -92,6 +100,7 @@ export function createApp({
 
   // Modular Routes
   app.use('/api/health', healthRoutes);
+  app.use('/api/assistant', createAssistantRoutes({ requireAuth, ...assistantRoutesOptions }));
   app.use('/api/auth', createAuthRoutes(requireAuth));
   app.use('/api/farmers', createFarmerRoutes(requireAuth));
   app.use('/api/mandi', createMandiRoutes({ requireAuth, ...mandiRoutesOptions }));

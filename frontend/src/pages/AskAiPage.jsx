@@ -1,8 +1,33 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
+
 import { useAuth } from '../context/AuthContext';
+import SpeakButton from '../components/SpeakButton';
+import VoiceInputButton from '../components/VoiceInputButton';
+import { getAssistantCapabilities, sendChatMessage } from '../services/assistantApi';
 import { t } from '../i18n/strings';
 import { sendCopilotMessage, getCopilotCapabilities } from '../services/copilotService';
 import { auth } from '../config/firebase';
+
+const CHIPS = ['onion', 'tomato', 'wheat'];
+const MAX_MESSAGE_CHARS = 500;
+
+/** Verified market data returned with an answer: mandi, price, unit and the reporting date. */
+function Sources({ sources, language }) {
+  if (!sources?.length) return null;
+  return (
+    <div className="bg-surface-container-low p-3 rounded-xl flex flex-col gap-1">
+      <span className="text-body-sm font-bold text-on-surface-variant uppercase tracking-wide">{t(language, 'ai.sourcesTitle')}</span>
+      <ul className="flex flex-col gap-1">
+        {sources.map((s) => (
+          <li key={`${s.mandi}-${s.date}`} className="text-body-sm text-on-surface flex flex-wrap justify-between gap-x-3">
+            <span>{s.mandi} ({s.district})</span>
+            <span className="font-semibold">₹{s.modal} / {t(language, 'ai.quintal')} · {t(language, 'ai.reportedOn', { date: s.date })}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 export default function AskAiPage() {
   const { language } = useAuth();
@@ -322,6 +347,7 @@ export default function AskAiPage() {
                 {inputText.length}/500
               </span>
             )}
+
           </div>
 
           <button

@@ -35,6 +35,21 @@ export const config = {
     from: process.env.EMAIL_FROM || undefined, // e.g. "FASALYTICS <no-reply@yourdomain.in>"
     replyTo: process.env.EMAIL_REPLY_TO || undefined,
   },
+  // Sarvam AI: speech-to-text and text-to-speech only. The key stays on the backend.
+  sarvam: {
+    apiKey: (process.env.SARVAM_API_KEY || '').trim() || undefined,
+    baseUrl: (process.env.SARVAM_API_URL || 'https://api.sarvam.ai').trim().replace(/\/+$/, ''),
+    timeoutMs: parseInt(process.env.SARVAM_TIMEOUT_MS || '20000', 10),
+    sttModel: process.env.SARVAM_STT_MODEL || 'saaras:v3',
+    ttsModel: process.env.SARVAM_TTS_MODEL || 'bulbul:v3',
+  },
+  // Groq: the chat model. The key stays on the backend (GROQ_API_KEY).
+  groq: {
+    apiKey: (process.env.GROQ_API_KEY || '').trim() || undefined,
+    baseUrl: (process.env.GROQ_API_URL || 'https://api.groq.com/openai/v1').trim().replace(/\/+$/, ''),
+    model: process.env.GROQ_CHAT_MODEL || 'llama-3.3-70b-versatile',
+    timeoutMs: parseInt(process.env.GROQ_TIMEOUT_MS || '20000', 10),
+  },
   // Mandi pipeline: safe defaults (no provider, scheduler off, no sample-data writes).
   mandi: parseMandiConfig(process.env),
 };
