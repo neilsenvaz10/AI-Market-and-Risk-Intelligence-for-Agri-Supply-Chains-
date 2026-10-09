@@ -58,5 +58,20 @@ frontend/.location-source/
 ml-service/artifacts/
 /artifacts/
 
+# Phase 4 trained forecasting models (npm run forecast:train) — build outputs,
+# regenerated deterministically from the price history. Anchored to both the
+# service directory and the repository root so the path never depends on the CWD.
+ml-service/artifacts/
+/artifacts/
+
 # PostgreSQL Docker Volumes
 postgres_data/
+
+# Phase 5 mandi datasets - compressed raw/processed partitions and quality
+# reports. The file globs are anchored nowhere so they match wherever written,
+# not only under backend/data/. Note: "data/" is NOT used as a bare pattern -
+# it would shadow the tracked ml-service/data/ package.
+/backend/data/
+*.csv.gz
+*.json.gz
+*.csv

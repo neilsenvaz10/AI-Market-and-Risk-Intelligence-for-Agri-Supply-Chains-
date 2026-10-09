@@ -1,74 +1,129 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { formatQuantity, translateCrop, translateLocation } from '../constants/profile';
 import { t } from '../i18n/strings';
-import { getLatestMandiPrices } from '../services/api';
-import { formatFetchedAt, formatReportDate, formatTrend, hasTrend, sourceLabel } from '../utils/mandiFeed';
+import { deriveFreshness, describeError, EMPTY_ROWS, marketApi } from '../services/marketApi';
+import { formatFetchedAt, formatReportDate, sourceLabel } from '../utils/mandiFeed';
 
-// Primary mandis for the dashboard card, in display order
-const HOME_MANDIS = {
-  MH_NSK_MAIN: { badge: 'NSK', nameKey: 'home.mandiPrices.nashikName' },
-  MH_PUNE_APMC: { badge: 'PUN', nameKey: 'home.mandiPrices.puneName' },
-  MH_AHM_APMC: { badge: 'AHM', nameKey: 'home.mandiPrices.ahmednagarName' },
-};
-const HOME_MANDI_CODES = Object.keys(HOME_MANDIS);
+/**
+ * Dashboard — the "Today's Mandi Prices" card and the data-freshness tile are
+ * driven by the Phase 5 read API:
+ *
+ *   GET /api/mandis/prices/latest  (onion card, real rows + real freshness meta)
+ *   GET /api/mandis/data-status    (dataset-wide staleness verdict)
+ *
+ * Honesty rules:
+ *  - No fallback prices. A failed request renders an error with the backend's
+ *    real message; an empty result renders an explicit empty state.
+ *  - Anything NOT backed by an API call is marked `home.demoBadge` in place.
+ *    The hero return figure, the 60/40 allocation bar and the AI-confidence
+ *    tile are still illustrative product concepts and are labelled as such.
+ */
 
-const TREND_STYLES = {
-  up: { icon: 'trending_up', tone: 'text-secondary' },
-  down: { icon: 'trending_down', tone: 'text-error' },
-  stable: { icon: 'trending_flat', tone: 'text-on-surface-variant' },
-  none: { icon: 'horizontal_rule', tone: 'text-on-surface-variant' },
-};
+// Primary markets for the dashboard card, in display order. A Map (not an
+// object literal) so a market code can never resolve to an Object.prototype key.
+const HOME_MANDIS = new Map([
+  ['MH_NSK_MAIN', { badge: 'NSK', nameKey: 'home.mandiPrices.nashikName' }],
+  ['MH_PUNE_APMC', { badge: 'PUN', nameKey: 'home.mandiPrices.puneName' }],
+  ['MH_AHM_APMC', { badge: 'AHM', nameKey: 'home.mandiPrices.ahmednagarName' }],
+]);
+const HOME_MANDI_CODES = [...HOME_MANDIS.keys()];
+
+/** The dashboard card is titled "Today's Mandi Prices (Onion)", so it stays onion-scoped. */
+const HOME_COMMODITY = 'ONION';
 
 const homeMandiRank = (row) => {
-  const index = HOME_MANDI_CODES.indexOf(row.mandi_code);
+  const index = HOME_MANDI_CODES.indexOf(row.mandi.code);
   return index === -1 ? HOME_MANDI_CODES.length : index;
 };
+
+const demoBadge = (language) => (
+  <span className="align-middle text-[10px] font-body-sm font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+    {t(language, 'home.demoBadge')}
+  </span>
+);
 
 export default function HomePage() {
   const { farmer, language } = useAuth();
   const firstName = farmer?.fullName?.split(' ')[0] || '';
-  // 'loading' | 'ready' | 'error'; meta = freshness summary from the API
-  const [priceFeed, setPriceFeed] = useState({ status: 'loading', rows: [], meta: null });
+  // A completed fetch only; `null` is the loading state (derived, not written).
+  const [feed, setFeed] = useState(null);
+  const [dataStatus, setDataStatus] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
-    getLatestMandiPrices({ commodity: 'ONION' })
+    const controller = new AbortController();
+    marketApi.getLatestPrices({ commodityCode: HOME_COMMODITY, limit: 200 }, { signal: controller.signal })
       .then((res) => {
-        if (isMounted) {
-          setPriceFeed({ status: 'ready', rows: Array.isArray(res?.data) ? res.data : [], meta: res?.meta || null });
-        }
+        if (isMounted) setFeed({ status: 'ready', rows: res.rows, meta: res.meta, error: null });
       })
-      .catch(() => {
-        // No fallback prices: surface the failure instead of showing stale numbers
-        if (isMounted) setPriceFeed({ status: 'error', rows: [], meta: null });
+      .catch((err) => {
+        if (!isMounted || err.name === 'AbortError') return;
+        setFeed({ status: 'error', rows: [], meta: null, error: err });
       });
-
     return () => {
       isMounted = false;
+      controller.abort();
     };
   }, [reloadKey]);
 
+  useEffect(() => {
+    let isMounted = true;
+    const controller = new AbortController();
+    marketApi.getDataStatus({ signal: controller.signal })
+      .then((status) => { if (isMounted) setDataStatus(status); })
+      .catch(() => { if (isMounted) setDataStatus(null); });
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, []);
+
   const retryPrices = () => {
-    setPriceFeed({ status: 'loading', rows: [], meta: null });
+    setFeed(null);
     setReloadKey((key) => key + 1);
   };
 
-  const onionPrices = [...priceFeed.rows].sort((a, b) => homeMandiRank(a) - homeMandiRank(b)).slice(0, 3);
-  const hasSampleData = onionPrices.some((row) => row.is_sample_data);
-  const priceSources = [...new Set(onionPrices.map((row) => sourceLabel(row, language)))];
+  const status = feed?.status ?? 'loading';
+  const rows = feed?.rows ?? EMPTY_ROWS;
+  const error = describeError(feed?.error);
 
-  // Freshness tile: the latest GENUINE reporting date from the API (not a fetch
-  // time and never a fixed claim). Sample-only and unavailable states are explicit.
-  const meta = priceFeed.meta;
-  const freshness =
-    priceFeed.status === 'loading' ? { kind: 'loading' }
-      : priceFeed.status === 'error' ? { kind: 'unavailable' }
-        : meta?.latest_genuine_reporting_date ? { kind: 'genuine', reported: meta.latest_genuine_reporting_date, fetched: meta.latest_genuine_fetched_at }
-          : meta?.latest_sample_reporting_date ? { kind: 'sample', reported: meta.latest_sample_reporting_date }
-            : { kind: 'none' };
+  const onionPrices = useMemo(
+    () => [...rows].sort((a, b) => homeMandiRank(a) - homeMandiRank(b)).slice(0, 3),
+    [rows],
+  );
+  const hasSampleData = onionPrices.some((row) => row.isSampleData);
+  const priceSources = [...new Set(onionPrices.map((row) => sourceLabel(row.raw, language)))];
+
+  // Freshness tile: the latest GENUINE reporting date from the API (never a
+  // fetch time, never a fixed claim). Sample-only and unavailable stay explicit.
+  const freshness = useMemo(
+    () => deriveFreshness(feed?.meta ?? null, dataStatus),
+    [feed?.meta, dataStatus],
+  );
+  const fresh =
+    freshness.pageLatestGenuineDate
+      ? { kind: 'genuine', reported: freshness.pageLatestGenuineDate, fetched: freshness.pageLatestGenuineFetchedAt }
+      : status === 'ready' && freshness.pageSampleRows > 0
+        ? { kind: 'sample' }
+        : { kind: 'none' };
+
+  const freshnessKind =
+    status === 'loading' ? 'loading' : status === 'error' ? 'unavailable' : fresh.kind;
+
+  // Alert strip body: the real market with the largest reported arrivals.
+  const arrivalLeader = useMemo(() => {
+    const ranked = rows
+      .filter((row) => row.arrivals.quantity !== null)
+      .sort((a, b) => b.arrivals.quantity - a.arrivals.quantity);
+    return ranked[0] ?? null;
+  }, [rows]);
+
+  const ageLabel = freshness.pageAgeDays === null
+    ? ''
+    : `${freshness.pageAgeDays} ${t(language, 'home.tile.freshnessUnit')}`;
 
   return (
     <div className="flex flex-col w-full pb-8">
@@ -127,7 +182,7 @@ export default function HomePage() {
         </p>
       </div>
 
-      {/* Dark Green Hero Card */}
+      {/* Dark Green Hero Card — illustrative concept, NOT a live recommendation. */}
       <Link
         to="/recommendation"
         className="block bg-primary text-on-primary rounded-xl p-5 mb-4 shadow-md relative overflow-hidden active:scale-[0.99] transition-transform"
@@ -135,8 +190,11 @@ export default function HomePage() {
         <div className="absolute -right-10 -bottom-10 w-36 h-36 bg-secondary/10 rounded-full blur-2xl pointer-events-none"></div>
         <div className="flex justify-between items-start mb-3">
           <div>
-            <p className="font-body-sm text-primary-fixed-dim uppercase tracking-wider text-[11px] font-semibold">
+            <p className="font-body-sm text-primary-fixed-dim uppercase tracking-wider text-[11px] font-semibold flex items-center gap-1.5">
               {t(language, 'home.hero.expectedReturn')}
+              <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.5 rounded tracking-normal">
+                {t(language, 'home.demoBadge')}
+              </span>
             </p>
             <h2 className="font-headline-xl text-on-primary mt-0.5">₹19,800</h2>
           </div>
@@ -144,7 +202,7 @@ export default function HomePage() {
             {t(language, 'home.hero.sellTomorrow')}
           </span>
         </div>
-        {/* Split bar Pune 60% / Ahmednagar 40% */}
+        {/* Split bar Pune 60% / Ahmednagar 40% — illustrative split, no API call. */}
         <div className="mt-4 pt-3 border-t border-primary-fixed/10">
           <div className="flex justify-between text-xs font-body-sm text-primary-fixed-dim mb-1.5">
             <span>{t(language, 'home.hero.suggestedAllocation')}</span>
@@ -161,22 +219,35 @@ export default function HomePage() {
         </div>
       </Link>
 
-      {/* Red Alert Strip */}
+      {/* Alert Strip — body is the largest REAL reported arrivals, never a mock percentage. */}
       <Link
         to="/alerts"
         className="bg-error-container text-on-error-container p-3 rounded-xl mb-4 flex items-center gap-3 shadow-sm active:scale-[0.99] transition-transform"
       >
         <span className="material-symbols-outlined text-error animate-pulse text-[22px]">warning</span>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <p className="font-label-md text-xs font-bold">{t(language, 'home.alert.title')}</p>
-          <p className="font-body-sm text-xs">{t(language, 'home.alert.body')}</p>
+          <p className="font-body-sm text-xs truncate">
+            {status === 'loading' && t(language, 'mandiFeed.loading')}
+            {status === 'error' && t(language, 'home.tile.feedUnavailable')}
+            {status === 'ready' && arrivalLeader && (
+              <>
+                {arrivalLeader.mandi.name ?? arrivalLeader.mandi.code}
+                {' · '}
+                {t(language, 'mandis.arrival')} {Number(arrivalLeader.arrivals.quantity).toLocaleString('en-IN', { maximumFractionDigits: 1 })}{' '}
+                {arrivalLeader.arrivals.unit || t(language, 'unit.tonne')}
+                {arrivalLeader.isSampleData && ` · ${t(language, 'mandiFeed.sampleBadge')}`}
+              </>
+            )}
+            {status === 'ready' && !arrivalLeader && t(language, 'home.tile.noMarketData')}
+          </p>
         </div>
         <span className="material-symbols-outlined text-[18px] opacity-60">chevron_right</span>
       </Link>
 
       {/* Three Small Tiles: Risk, Confidence, Data freshness */}
       <div className="grid grid-cols-3 gap-3 mb-4">
-        {/* Risk Tile */}
+        {/* Risk Tile — still a static risk level, marked as demo content */}
         <div className="bg-surface-container-lowest p-3 rounded-xl shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between text-on-surface-variant mb-1">
             <span className="font-body-sm text-xs">{t(language, 'home.tile.risk')}</span>
@@ -186,12 +257,13 @@ export default function HomePage() {
             <span className="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800 mb-1">
               {t(language, 'home.tile.riskLevel')}
             </span>
+            {demoBadge(language)}
             <p className="font-body-sm text-[10px] text-on-surface-variant truncate">
               {t(language, 'home.tile.riskSubtext')}
             </p>
           </div>
         </div>
-        {/* Confidence Tile */}
+        {/* Confidence Tile — the 78% figure has no model behind it yet, so it is labelled DEMO */}
         <div className="bg-surface-container-lowest p-3 rounded-xl shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between text-on-surface-variant mb-1">
             <span className="font-body-sm text-xs">{t(language, 'home.tile.aiConf')}</span>
@@ -202,6 +274,7 @@ export default function HomePage() {
             <span className="text-[10px] text-secondary font-medium">
               {t(language, 'home.tile.aiConfLevel')}
             </span>
+            {demoBadge(language)}
           </div>
           <p className="font-body-sm text-[10px] text-on-surface-variant truncate">
             {t(language, 'home.tile.aiConfSubtext')}
@@ -213,28 +286,34 @@ export default function HomePage() {
             <span className="font-body-sm text-xs">{t(language, 'home.tile.freshness')}</span>
             <span
               className={`w-2 h-2 rounded-full ${
-                freshness.kind === 'genuine' ? 'bg-secondary' : freshness.kind === 'sample' ? 'bg-amber-600' : 'bg-outline'
+                freshnessKind === 'genuine'
+                  ? freshness.isStale === true ? 'bg-amber-600' : 'bg-secondary'
+                  : freshnessKind === 'sample' ? 'bg-amber-600' : 'bg-outline'
               }`}
             ></span>
           </div>
           <div>
             <span className="font-headline-md text-lg text-on-surface font-bold">
-              {freshness.reported ? formatReportDate(freshness.reported, language, { year: false }) : '—'}
+              {fresh.reported ? formatReportDate(fresh.reported, language, { year: false }) : '—'}
             </span>
           </div>
           <p
             className={`font-body-sm text-[10px] font-medium truncate ${
-              freshness.kind === 'genuine' ? 'text-secondary' : freshness.kind === 'sample' ? 'text-amber-800' : 'text-on-surface-variant'
+              freshnessKind === 'genuine'
+                ? freshness.isStale === true ? 'text-amber-800' : 'text-secondary'
+                : freshnessKind === 'sample' ? 'text-amber-800' : 'text-on-surface-variant'
             }`}
           >
-            {freshness.kind === 'genuine' &&
-              (freshness.fetched
-                ? t(language, 'home.tile.reportedFetched', { date: formatFetchedAt(freshness.fetched, language) })
+            {freshnessKind === 'genuine' &&
+              (ageLabel
+                ? `${ageLabel} · ${fresh.fetched
+                  ? t(language, 'home.tile.reportedFetched', { date: formatFetchedAt(fresh.fetched, language) })
+                  : t(language, 'home.tile.reportedDate')}`
                 : t(language, 'home.tile.reportedDate'))}
-            {freshness.kind === 'sample' && t(language, 'mandiFeed.sampleBadge')}
-            {freshness.kind === 'none' && t(language, 'home.tile.noMarketData')}
-            {freshness.kind === 'unavailable' && t(language, 'home.tile.feedUnavailable')}
-            {freshness.kind === 'loading' && t(language, 'mandiFeed.loading')}
+            {freshnessKind === 'sample' && t(language, 'mandiFeed.sampleBadge')}
+            {freshnessKind === 'none' && t(language, 'home.tile.noMarketData')}
+            {freshnessKind === 'unavailable' && t(language, 'home.tile.feedUnavailable')}
+            {freshnessKind === 'loading' && t(language, 'mandiFeed.loading')}
           </p>
         </div>
       </div>
@@ -264,64 +343,63 @@ export default function HomePage() {
         </Link>
       </div>
 
-      {/* Today's Mandi Prices Section — latest reported prices from the mandi data pipeline */}
+      {/* Today's Mandi Prices Section — latest reported prices from /api/mandis/prices/latest */}
       <div className="bg-surface-container-lowest rounded-xl p-4 shadow-sm mb-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-headline-md text-on-surface text-base">
             {t(language, 'home.mandiPrices.title')}
-            {hasSampleData && (
-              <>
-                {' '}
-                <span className="align-middle text-[10px] font-body-sm font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
-                  {t(language, 'home.demoBadge')}
-                </span>
-              </>
-            )}
+            {hasSampleData && demoBadge(language)}
           </h3>
           <Link to="/mandis" className="font-label-md text-xs text-secondary font-medium">
             {t(language, 'home.mandiPrices.viewAll')}
           </Link>
         </div>
 
-        {priceFeed.status === 'loading' && (
+        {status === 'loading' && (
           <div className="flex items-center gap-2 p-2.5 text-on-surface-variant" role="status">
             <span className="material-symbols-outlined animate-spin text-secondary text-[18px]">progress_activity</span>
             <p className="font-body-sm text-xs">{t(language, 'mandiFeed.loading')}</p>
           </div>
         )}
 
-        {priceFeed.status === 'error' && (
-          <div className="bg-error-container text-on-error-container p-3 rounded-lg flex items-center gap-3" role="alert">
+        {status === 'error' && (
+          <div className="bg-error-container text-on-error-container p-3 rounded-lg flex items-start gap-3" role="alert">
             <span className="material-symbols-outlined text-error text-[20px] shrink-0">error</span>
-            <p className="font-body-sm text-xs flex-1">{t(language, 'mandiFeed.error')}</p>
-            <button
-              type="button"
-              onClick={retryPrices}
-              className="font-label-md text-xs font-bold text-error underline shrink-0"
-            >
-              {t(language, 'mandiFeed.retry')}
-            </button>
+            <div className="flex-1">
+              <p className="font-body-sm text-xs">{t(language, 'mandiFeed.error')}</p>
+              {error?.message && (
+                <p className="font-body-sm text-[10px] opacity-80 mt-0.5">
+                  {error.code ? `${error.code}: ` : ''}{error.message}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={retryPrices}
+                className="font-label-md text-xs font-bold text-error underline shrink-0 mt-1"
+              >
+                {t(language, 'mandiFeed.retry')}
+              </button>
+            </div>
           </div>
         )}
 
-        {priceFeed.status === 'ready' && onionPrices.length === 0 && (
+        {status === 'ready' && onionPrices.length === 0 && (
           <p className="font-body-sm text-xs text-on-surface-variant p-2.5">{t(language, 'mandiFeed.empty')}</p>
         )}
 
         {onionPrices.length > 0 && (
           <>
             <div className="space-y-3">
-              {onionPrices.map((row) => {
-                const homeMandi = HOME_MANDIS[row.mandi_code];
-                const badge = homeMandi?.badge || String(row.mandi_name || '').slice(0, 3).toUpperCase();
-                const trend = hasTrend(row) ? TREND_STYLES[row.trend_direction] : TREND_STYLES.none;
-                const price = `₹${Number(row.modal_price).toLocaleString('en-IN')}`;
-                // The API stores every price in INR per quintal (price_unit).
+              {onionPrices.map((row, index) => {
+                const homeMandi = HOME_MANDIS.get(row.mandi.code);
+                const badge = homeMandi?.badge || String(row.mandi.name || '').slice(0, 3).toUpperCase();
+                const price = `₹${Number(row.prices.modal).toLocaleString('en-IN')}`;
+                // The API stores every price in INR per quintal.
                 const unit = t(language, 'home.mandiPrices.quintal');
 
                 return (
-                  <div key={row.id} className="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low">
-                    <div className="flex items-center gap-3">
+                  <div key={String(row.id ?? index)} className="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low">
+                    <div className="flex items-center gap-3 min-w-0">
                       <div
                         className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
                           badge === 'PUN'
@@ -331,27 +409,25 @@ export default function HomePage() {
                       >
                         {badge}
                       </div>
-                      <div>
-                        <p className="font-label-lg text-sm font-bold text-on-surface">
-                          {homeMandi ? t(language, homeMandi.nameKey) : row.mandi_name}
+                      <div className="min-w-0">
+                        <p className="font-label-lg text-sm font-bold text-on-surface truncate">
+                          {homeMandi ? t(language, homeMandi.nameKey) : (row.mandi.name ?? row.mandi.code)}
                           {row.variety && <span className="font-normal text-on-surface-variant"> · {row.variety}</span>}
                         </p>
                         <p className="font-body-sm text-xs text-on-surface-variant">
                           {t(language, 'home.mandiPrices.modal')}: {price} / {unit}
                         </p>
                         <p className="font-body-sm text-[10px] text-on-surface-variant">
-                          {t(language, 'mandiFeed.reported', { date: formatReportDate(row.price_date, language) })}
+                          {t(language, 'mandiFeed.reported', { date: formatReportDate(row.reportedDate, language) || '—' })}
                         </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <span className={`font-label-lg text-sm font-bold flex items-center justify-end gap-0.5 ${trend.tone}`}>
-                        <span className="material-symbols-outlined text-[16px]">{trend.icon}</span> {price}
+                    <div className="text-right shrink-0">
+                      <span className="font-label-lg text-sm font-bold flex items-center justify-end gap-0.5 text-on-surface">
+                        <span className="material-symbols-outlined text-[16px] text-on-surface-variant">payments</span> {price}
                       </span>
-                      <span className={`text-[10px] font-medium ${trend.tone}`}>
-                        {hasTrend(row)
-                          ? `${formatTrend(row)} ${t(language, 'mandiFeed.vsPrevious')}`
-                          : t(language, 'mandiFeed.noEarlierReport')}
+                      <span className="text-[10px] font-medium text-on-surface-variant">
+                        {row.isSampleData ? t(language, 'mandiFeed.sampleBadge') : row.commodity.name}
                       </span>
                     </div>
                   </div>

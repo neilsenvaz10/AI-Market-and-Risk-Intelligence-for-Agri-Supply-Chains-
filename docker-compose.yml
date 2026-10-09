@@ -17,6 +17,11 @@ services:
       - ./database/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
       # Applied automatically only on a fresh volume; existing DBs use `npm run migrate`
       - ./database/migrations/002_phase2_farmers.sql:/docker-entrypoint-initdb.d/03_phase2_farmers.sql:ro
+      - ./database/migrations/003_phase2_email_identity.sql:/docker-entrypoint-initdb.d/04_phase2_email_identity.sql:ro
+      - ./database/migrations/004_mandi_data_pipeline.sql:/docker-entrypoint-initdb.d/05_mandi_data_pipeline.sql:ro
+      - ./database/migrations/005_mandi_pipeline_integrity.sql:/docker-entrypoint-initdb.d/06_mandi_pipeline_integrity.sql:ro
+      - ./database/migrations/006_phase4_forecasting.sql:/docker-entrypoint-initdb.d/07_phase4_forecasting.sql:ro
+      - ./database/migrations/007_phase5_canonical_mandi.sql:/docker-entrypoint-initdb.d/08_phase5_canonical_mandi.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-fasalytics}"]
       interval: 5s

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import fs from 'node:fs';
 import {
   parseDateHeader,
   parseNumericOrNull,
@@ -44,7 +45,11 @@ test('parseCsvLine: handles quoted commas properly', () => {
   ]);
 });
 
-test('parseAgmarknetCsv: parses the 16 commodities and 3 dates from official report', () => {
+test('parseAgmarknetCsv: parses the 16 commodities and 3 dates from official report', (t) => {
+  if (!fs.existsSync(testCsv)) {
+    t.skip('official agmarknet CSV not committed to git repository');
+    return;
+  }
   const records = parseAgmarknetCsv(testCsv);
   assert.equal(records.length, 48, 'must contain exactly 48 unpivoted observations');
 

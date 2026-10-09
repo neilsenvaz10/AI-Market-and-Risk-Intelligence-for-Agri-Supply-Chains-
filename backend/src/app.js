@@ -5,6 +5,7 @@ import healthRoutes from './routes/health.routes.js';
 import createAuthRoutes from './routes/auth.routes.js';
 import createFarmerRoutes from './routes/farmer.routes.js';
 import createMandiRoutes from './routes/mandi.routes.js';
+import createMarketRoutes from './routes/market.routes.js';
 import createForecastRoutes from './routes/forecast.routes.js';
 import { requireAuth as defaultRequireAuth } from './middleware/auth.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
@@ -50,7 +51,7 @@ export function createApp({
     res.json({
       name: 'FASALYTICS API Backend',
       version: '1.0.0',
-      phase: 'Phase 4 - Price Forecasting',
+      phase: 'Phase 5 - Mandi Data Pipeline',
       endpoints: {
         health: '/api/health',
         databaseHealth: '/api/health/database',
@@ -71,6 +72,13 @@ export function createApp({
           syncStatus: '/api/mandi/sync/status',
           qualityReport: '/api/mandi/quality/report',
         },
+        market: {
+          commodities: '/api/commodities',
+          mandis: '/api/mandis',
+          latestPrices: '/api/mandis/prices/latest',
+          priceHistory: '/api/mandis/prices/history',
+          dataStatus: '/api/mandis/data-status',
+        },
       },
     });
   });
@@ -80,6 +88,10 @@ export function createApp({
   app.use('/api/auth', createAuthRoutes(requireAuth));
   app.use('/api/farmers', createFarmerRoutes(requireAuth));
   app.use('/api/mandi', createMandiRoutes({ requireAuth, ...mandiRoutesOptions }));
+  // Phase 5 read-only market API: /api/commodities, /api/mandis, /api/mandis/prices/...,
+  // /api/mandis/data-status. The broad '/api' mount does not shadow '/api/mandi/*'
+  // because Express matches mount paths by segment.
+  app.use('/api', createMarketRoutes());
   app.use('/api/forecast', createForecastRoutes());
 
   // Error handling
