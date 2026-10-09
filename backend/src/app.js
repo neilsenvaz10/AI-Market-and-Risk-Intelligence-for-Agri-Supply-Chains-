@@ -7,6 +7,7 @@ import createFarmerRoutes from './routes/farmer.routes.js';
 import createMandiRoutes from './routes/mandi.routes.js';
 import createMarketRoutes from './routes/market.routes.js';
 import createForecastRoutes from './routes/forecast.routes.js';
+import createRiskRoutes from './routes/risk.routes.js';
 import { requireAuth as defaultRequireAuth } from './middleware/auth.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { createEmailProvider } from './services/email/emailProvider.js';
@@ -20,15 +21,17 @@ export function createDefaultWelcomeEmailService() {
 }
 
 /**
- * Builds the Express app. `requireAuth`, `welcomeEmail` and `mandiRoutesOptions` are
- * injectable so tests can supply a fake token verifier / email provider / ingestion
- * authoriser; production always uses Firebase Admin verification, the configured
- * email provider and denies HTTP ingestion until an admin role is approved.
+ * Builds the Express app. `requireAuth`, `welcomeEmail`, `mandiRoutesOptions` and
+ * `riskRoutesOptions` are injectable so tests can supply a fake token verifier /
+ * email provider / ingestion authoriser / risk controller; production always uses
+ * Firebase Admin verification, the configured email provider and denies HTTP
+ * ingestion until an admin role is approved.
  */
 export function createApp({
   requireAuth = defaultRequireAuth,
   welcomeEmail = createDefaultWelcomeEmailService(),
   mandiRoutesOptions = {},
+  riskRoutesOptions = {},
 } = {}) {
   const app = express();
   app.locals.welcomeEmail = welcomeEmail;
@@ -51,7 +54,7 @@ export function createApp({
     res.json({
       name: 'FASALYTICS API Backend',
       version: '1.0.0',
-      phase: 'Phase 5 - Mandi Data Pipeline',
+      phase: 'Phase 6 - Agricultural Risk Intelligence',
       endpoints: {
         health: '/api/health',
         databaseHealth: '/api/health/database',
@@ -61,6 +64,11 @@ export function createApp({
         forecast: {
           byCommodityAndMandi: '/api/forecast/:commodity/:mandi',
           query: '?horizon=1..7&modelVersion=<version>&includeSample=false&order=ASC|DESC',
+        },
+        risk: {
+          byCommodityAndMandi: '/api/risk/mandi/:commodity/:mandi',
+          summary: '/api/risk/summary',
+          query: '?includeSample=false&referenceDate=YYYY-MM-DD',
         },
         mandi: {
           mandis: '/api/mandi/mandis',
@@ -93,6 +101,7 @@ export function createApp({
   // because Express matches mount paths by segment.
   app.use('/api', createMarketRoutes());
   app.use('/api/forecast', createForecastRoutes());
+  app.use('/api/risk', createRiskRoutes(riskRoutesOptions));
 
   // Error handling
   app.use(notFoundHandler);

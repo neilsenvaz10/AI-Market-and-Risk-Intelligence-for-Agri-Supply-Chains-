@@ -8,6 +8,7 @@ import RecommendationResultPage from './pages/RecommendationResultPage';
 import MandisPage from './pages/MandisPage';
 import AlertsPage from './pages/AlertsPage';
 import ProfilePage from './pages/ProfilePage';
+import RiskDashboardPage from './pages/RiskDashboardPage';
 import LoginPage from './pages/LoginPage';
 import VerifyOtpPage from './pages/VerifyOtpPage';
 import FarmerRegistrationPage from './pages/FarmerRegistrationPage';
@@ -64,6 +65,7 @@ function App() {
               <Route path="ask-ai" element={<AskAiPage />} />
               <Route path="recommendation" element={<RecommendationResultPage />} />
               <Route path="mandis" element={<MandisPage />} />
+              <Route path="risk" element={<RiskDashboardPage />} />
               <Route path="alerts" element={<AlertsPage />} />
               <Route path="profile" element={<ProfilePage />} />
             </Route>
