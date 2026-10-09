@@ -197,15 +197,15 @@ test('CEDA export: no file written to disk (CSV, raw responses, manifest) contai
       async requestJson(url, { method, body, headers }) {
         assert.equal(headers.Authorization, `Bearer ${SENTINEL}`);
         const route = `${method} ${new URL(url).pathname.replace('/v1', '')}`;
-        if (route === 'GET /agmarknet/commodities') return { data: { commodities: [{ id: 3, name: 'Onion' }] } };
-        if (route === 'GET /agmarknet/geographies') return { data: { geographies: [{ state_id: 27, state_name: 'Maharashtra', districts: [{ district_id: 516, district_name: 'Nashik' }] }] } };
+        if (route === 'GET /agmarknet/commodities') return { data: { output: { type: 'success', message: 'Data exists', data: [{ commodity_id: 23, commodity_name: 'Onion' }] } } };
+        if (route === 'GET /agmarknet/geographies') return { data: { output: { type: 'success', message: 'Data exists', data: [{ census_state_id: 27, census_state_name: 'Maharashtra', census_district_id: 516, census_district_name: 'Nashik' }] } } };
         if (route === 'POST /agmarknet/markets') return { data: { data: [{ market_id: 901, market_name: 'Lasalgaon' }] } };
         if (route === 'POST /agmarknet/prices') return { data: { data: [{ date: body.from_date, commodity_id: 3, market_id: 901, min_price: 1000, max_price: 1600, modal_price: 1400 }] } };
         if (route === 'POST /agmarknet/quantities') return { data: { data: [{ date: body.from_date, market_id: 901, quantity: 5 }] } };
         throw new Error(`unexpected ${route}`);
       },
     };
-    const provider = new CedaProvider({ client: new CedaClient({ apiKey: SENTINEL, http }) });
+    const provider = new CedaProvider({ client: new CedaClient({ apiKey: SENTINEL, http, allowUnverifiedContract: true }) });
     const summary = await runCedaExport({
       provider, commodity: 'Onion', state: 'Maharashtra', district: 'Nashik', fromDate: '2026-09-01', toDate: '2026-09-20',
       windowDays: 10, outDir: dir, log: { log() {}, error() {} },

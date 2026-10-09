@@ -1,5 +1,6 @@
 import { pool as defaultPool } from '../db.js';
 import { CONFLICT_TOLERANCE, observationKey, valueSignature } from './deduplicator.js';
+import { deriveCanonicalFields } from './canonical.js';
 
 /**
  * Mandi Data Persister
@@ -12,6 +13,21 @@ import { CONFLICT_TOLERANCE, observationKey, valueSignature } from './deduplicat
  * - A changed value from the same source is stored with its previous version in
  *   mandi_price_revisions (audit trail) before the row is updated.
  * - Sample (MOCK) rows are refused unless explicitly allowed.
+ * - Phase 5 (migration 007) adds the canonical columns via deriveCanonicalFields.
+ *
+ * TWO UNIQUE RULES (Phase 5)
+ * -------------------------
+ * `mandi_prices` now has two unique rules:
+ *   uq_mandi_prices_observation    (source, mandi_id, commodity_id, price_date, variety, grade)
+ *   uq_mandi_prices_source_record  partial UNIQUE (source, source_record_key)
+ * A single INSERT can only target one ON CONFLICT clause, so the INSERT targets
+ * the OBSERVATION constraint (the primary idempotency rule, matching the SELECT
+ * ... FOR UPDATE performed first). The source-record index stays as an integrity
+ * GUARD: if the same source record was already stored under a different
+ * observation identity, PostgreSQL raises 23505 on
+ * `uq_mandi_prices_source_record`. That is expected — the batch classifies the
+ * row as `skipped` (see `skipped` / `skippedRecords` counters) instead of
+ * aborting. Every other error still fails the row and is reported.
  */
 
 export class SampleDataWriteError extends Error {
@@ -35,6 +51,19 @@ const sameValue = (a, b) => (a === null || a === undefined ? null : String(Numbe
 
 // Never let database error text (which can contain values) grow without bound in logs.
 const safeMessage = (err) => String(err?.message || err).slice(0, 300);
+
+/**
+ * True only for a 23505 raised by the Phase 5 partial index
+ * `uq_mandi_prices_source_record`. Matched by name so unrelated unique
+ * violations are never silently accepted.
+ */
+export function isDuplicateSourceRecordError(err) {
+  if (!err || err.code !== '23505') return false;
+  const constraint = String(err.constraint || '');
+  const message = String(err.message || '');
+  return constraint === 'uq_mandi_prices_source_record'
+    || message.includes('uq_mandi_prices_source_record');
+}
 
 export class MandiPersister {
   constructor({ pool = defaultPool, allowSampleData = false, conflictTolerance = CONFLICT_TOLERANCE } = {}) {
@@ -69,6 +98,7 @@ export class MandiPersister {
   }
 
   async #upsertPrice(client, record, mandiId, commodityId, runId) {
+    const canonical = deriveCanonicalFields(record);
     const existing = await client.query(
       `SELECT id, min_price, max_price, modal_price, arrivals_quantity, price_unit, arrival_unit
        FROM mandi_prices
@@ -85,9 +115,13 @@ export class MandiPersister {
            arrivals_quantity, unit, price_unit, arrival_unit, variety, grade, source, is_sample_data,
            source_record_key, source_market_id, source_commodity_id, source_state_id, source_district_id,
            source_market_name, source_commodity_name, source_state_name, source_district_name,
-           source_variety, source_grade, quality_flags, raw_payload, fetched_at, last_seen_at, ingestion_run_id
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,'quintal',$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,
-                   COALESCE($27::timestamptz, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP, $28)
+           source_variety, source_grade,
+           variety_code, state_code, district_code, market_code, commodity_category_code, source_dataset, content_hash, quality_status,
+           quality_flags, raw_payload, fetched_at, last_seen_at, ingestion_run_id
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,'quintal',$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,
+                   $25,$26,$27,$28,$29,$30,$31,$32,$33,$34,
+                   COALESCE($35::timestamptz, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP, $36)
+         ON CONFLICT ON CONSTRAINT uq_mandi_prices_observation DO NOTHING
          RETURNING id`,
         [
           mandiId, commodityId, record.price_date, record.min_price, record.max_price, record.modal_price,
@@ -95,11 +129,16 @@ export class MandiPersister {
           record.source, record.is_sample_data,
           record.source_record_key, record.source_market_id, record.source_commodity_id, record.source_state_id,
           record.source_district_id, record.source_market_name, record.source_commodity_name, record.source_state_name,
-          record.source_district_name, record.source_variety, record.source_grade, record.quality_flags || [],
+          record.source_district_name, record.source_variety, record.source_grade,
+          canonical.variety_code, canonical.state_code, canonical.district_code, canonical.market_code,
+          canonical.commodity_category_code, canonical.source_dataset, canonical.content_hash, canonical.quality_status,
+          record.quality_flags || [],
           record.raw_payload === null || record.raw_payload === undefined ? null : JSON.stringify(record.raw_payload),
           record.fetched_at, runId,
         ]
       );
+      // ON CONFLICT DO NOTHING: a concurrent writer stored this observation first.
+      if (res.rowCount === 0) return { outcome: 'unchanged', id: null };
       return { outcome: 'inserted', id: res.rows[0].id };
     }
 
@@ -120,13 +159,19 @@ export class MandiPersister {
     await client.query(
       `UPDATE mandi_prices SET
          min_price = $2, max_price = $3, modal_price = $4, arrivals_quantity = $5,
-         price_unit = $6, arrival_unit = $7, quality_flags = $8,
-         raw_payload = $9, fetched_at = COALESCE($10::timestamptz, CURRENT_TIMESTAMP),
-         last_seen_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP, ingestion_run_id = $11
+         price_unit = $6, arrival_unit = $7,
+         variety_code = $8, state_code = $9, district_code = $10, market_code = $11,
+         commodity_category_code = $12, source_dataset = $13, content_hash = $14, quality_status = $15,
+         quality_flags = $16,
+         raw_payload = $17, fetched_at = COALESCE($18::timestamptz, CURRENT_TIMESTAMP),
+         last_seen_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP, ingestion_run_id = $19
        WHERE id = $1`,
       [
         row.id, record.min_price, record.max_price, record.modal_price, record.arrivals_quantity,
-        record.price_unit, record.arrival_unit, record.quality_flags || [],
+        record.price_unit, record.arrival_unit,
+        canonical.variety_code, canonical.state_code, canonical.district_code, canonical.market_code,
+        canonical.commodity_category_code, canonical.source_dataset, canonical.content_hash, canonical.quality_status,
+        record.quality_flags || [],
         record.raw_payload === null || record.raw_payload === undefined ? null : JSON.stringify(record.raw_payload),
         record.fetched_at, runId,
       ]
@@ -198,11 +243,14 @@ export class MandiPersister {
 
   /**
    * Persists normalised, validated, de-duplicated records in one transaction.
-   * @returns {Promise<{inserted:number, updated:number, unchanged:number, failed:number,
-   *   conflicts:number, errors:Array<{key:string, message:string}>}>}
+   * Existing counter names/meanings are unchanged; `skipped` / `skippedRecords`
+   * are additive and cover only a duplicate (source, source_record_key).
+   * @returns {Promise<{inserted:number, updated:number, unchanged:number, skipped:number,
+   *   failed:number, conflicts:number, errors:Array<{key:string, message:string}>,
+   *   skippedRecords:Array<{key:string, reason:string}>}>}
    */
   async persistBatch(records, { runId = null, batchConflicts = [] } = {}) {
-    const result = { inserted: 0, updated: 0, unchanged: 0, failed: 0, conflicts: 0, errors: [] };
+    const result = { inserted: 0, updated: 0, unchanged: 0, skipped: 0, failed: 0, conflicts: 0, errors: [], skippedRecords: [] };
     if ((!records || records.length === 0) && !batchConflicts.length) return result;
     if (!this.allowSampleData && (records || []).some((r) => r.is_sample_data)) throw new SampleDataWriteError();
 
@@ -227,8 +275,15 @@ export class MandiPersister {
           if (outcome !== 'unchanged') touched.push(id);
         } catch (err) {
           await client.query('ROLLBACK TO SAVEPOINT record_write');
-          result.failed += 1;
-          result.errors.push({ key: observationKey(record), message: safeMessage(err) });
+          if (isDuplicateSourceRecordError(err)) {
+            // Expected Phase 5 outcome: this source record is already stored under a
+            // different observation identity. Roll the row back alone and count it.
+            result.skipped += 1;
+            result.skippedRecords.push({ key: observationKey(record), reason: 'SOURCE_RECORD_ALREADY_STORED' });
+          } else {
+            result.failed += 1;
+            result.errors.push({ key: observationKey(record), message: safeMessage(err) });
+          }
         }
       }
       result.conflicts += await this.#recordBatchConflicts(client, batchConflicts, runId);

@@ -213,6 +213,14 @@ export function normalizeMandiRecord(record) {
     source_variety: cleanText(record.variety),
     source_grade: cleanText(record.grade),
 
+    // Phase 5 (migration 007): pass through SOURCE-provided codes verbatim.
+    // These are never derived from a name — a missing code stays null so the
+    // canonical mapper (canonical.js) can distinguish "not published" from a
+    // fabricated value. Purely additive: no existing field changes.
+    source_variety_code: cleanText(record.source_variety_code ?? record.variety_code),
+    source_commodity_category_code: cleanText(record.source_commodity_category_code ?? record.commodity_category_code),
+    source_dataset: cleanText(record.source_dataset),
+
     mandi_code: mandi?.code ?? null,
     mandi_name: mandi?.name ?? null,
     state: mandi?.state ?? null,

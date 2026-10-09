@@ -13,13 +13,14 @@ import { fileURLToPath } from 'node:url';
 const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../database/migrations');
 const PHASE3 = ['004_mandi_data_pipeline.sql', '005_mandi_pipeline_integrity.sql'];
 const PHASE4 = ['006_phase4_forecasting.sql'];
+const PHASE5 = ['007_phase5_canonical_mandi.sql'];
 const PHASE2_TABLES = ['farmers', 'farmer_identities', 'schema_migrations'];
 
 // Comments and string literals are removed so only executable SQL is scanned.
 const strip = (sql) => sql.replace(/--.*$/gm, '').replace(/'(?:[^']|'')*'/g, "''");
 const statements = (sql) => strip(sql).split(';').map((s) => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
 
-for (const file of [...PHASE3, ...PHASE4]) {
+for (const file of [...PHASE3, ...PHASE4, ...PHASE5]) {
   test(`${file}: no destructive statements`, async () => {
     const sql = strip(await fs.readFile(path.join(dir, file), 'utf8'));
     const forbiddenPatterns = [/\bDROP\s+TABLE\b/i, /\bTRUNCATE\b/i, /\bDELETE\s+FROM\b/i, /\bDROP\s+COLUMN\b/i,
@@ -118,5 +119,5 @@ test('005: column type changes only widen', async () => {
 
 test('migration directory: files are ordered by phase and numbers are unique', async () => {
   const files = (await fs.readdir(dir)).filter((f) => f.endsWith('.sql')).sort();
-  assert.deepEqual(files, ['002_phase2_farmers.sql', '003_phase2_email_identity.sql', ...PHASE3, ...PHASE4]);
+  assert.deepEqual(files, ['002_phase2_farmers.sql', '003_phase2_email_identity.sql', ...PHASE3, ...PHASE4, ...PHASE5]);
 });

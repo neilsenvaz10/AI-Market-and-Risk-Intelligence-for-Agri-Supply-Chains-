@@ -56,3 +56,12 @@ ml-service/artifacts/
 
 # PostgreSQL Docker Volumes
 postgres_data/
+
+# Phase 5 mandi datasets - compressed raw/processed partitions and quality
+# reports. The file globs are anchored nowhere so they match wherever written,
+# not only under backend/data/. Note: "data/" is NOT used as a bare pattern -
+# it would shadow the tracked ml-service/data/ package.
+/backend/data/
+*.csv.gz
+*.json.gz
+*.csv

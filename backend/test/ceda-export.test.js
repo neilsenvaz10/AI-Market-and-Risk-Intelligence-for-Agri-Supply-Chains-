@@ -17,8 +17,8 @@ function fakeHttp() {
     counts,
     async requestJson(url, { method, body }) {
       const route = `${method} ${new URL(url).pathname.replace('/v1', '')}`;
-      if (route === 'GET /agmarknet/commodities') return { data: { commodities: [{ id: 3, name: 'Onion' }] } };
-      if (route === 'GET /agmarknet/geographies') return { data: { geographies: [{ state_id: 27, state_name: 'Maharashtra', districts: [{ district_id: 516, district_name: 'Nashik' }] }] } };
+      if (route === 'GET /agmarknet/commodities') return { data: { output: { type: 'success', message: 'Data exists', data: [{ commodity_id: 23, commodity_name: 'Onion' }] } } };
+      if (route === 'GET /agmarknet/geographies') return { data: { output: { type: 'success', message: 'Data exists', data: [{ census_state_id: 27, census_state_name: 'Maharashtra', census_district_id: 516, census_district_name: 'Nashik' }] } } };
       if (route === 'POST /agmarknet/markets') return { data: { data: [{ market_id: 901, market_name: 'Lasalgaon' }] } };
       if (route === 'POST /agmarknet/prices') {
         counts.prices += 1;
@@ -43,7 +43,7 @@ test('export writes gzip CSV + raw JSON + manifest, then resumes without refetch
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'fasalytics-ceda-'));
   try {
     const http = fakeHttp();
-    const provider = new CedaProvider({ client: new CedaClient({ apiKey: 'k', http }) });
+    const provider = new CedaProvider({ client: new CedaClient({ apiKey: 'k', http, allowUnverifiedContract: true }) });
     const options = { provider, commodity: 'Onion', state: 'Maharashtra', district: 'Nashik', fromDate: '2026-09-01', toDate: '2026-09-30',
       windowDays: 10, outDir: dir, log: quiet, guard: roomyDisk };
     const first = await runCedaExport(options);
@@ -94,7 +94,7 @@ test('export stops cleanly when the disk guard trips, leaving the manifest consi
         if (checks > 2) throw Object.assign(new Error(`low disk (${stage})`), { code: 'LOW_DISK_SPACE' });
       },
     };
-    const provider = new CedaProvider({ client: new CedaClient({ apiKey: 'k', http: fakeHttp() }) });
+    const provider = new CedaProvider({ client: new CedaClient({ apiKey: 'k', http: fakeHttp(), allowUnverifiedContract: true }) });
     const summary = await runCedaExport({ provider, commodity: 'Onion', state: 'Maharashtra', district: 'Nashik',
       fromDate: '2026-09-01', toDate: '2026-09-30', windowDays: 10, outDir: dir, log: quiet, guard });
     assert.match(summary.stoppedReason, /low disk/);
@@ -107,7 +107,7 @@ test('export stops cleanly when the disk guard trips, leaving the manifest consi
 });
 
 test('export refuses dates outside the 2021-10-01..2026-09-30 historical window', async () => {
-  const provider = new CedaProvider({ client: new CedaClient({ apiKey: 'k', http: fakeHttp() }) });
+  const provider = new CedaProvider({ client: new CedaClient({ apiKey: 'k', http: fakeHttp(), allowUnverifiedContract: true }) });
   await assert.rejects(runCedaExport({ provider, commodity: 'Onion', state: 'Maharashtra', district: 'Nashik',
     fromDate: '2026-09-01', toDate: '2026-10-08', outDir: os.tmpdir(), guard: roomyDisk, log: quiet }), /must lie within/);
 });
