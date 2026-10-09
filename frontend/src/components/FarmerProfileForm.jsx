@@ -122,16 +122,18 @@ export default function FarmerProfileForm({
           placeholder="e.g. Ramesh Patil" autoComplete="name" maxLength={100} />
       </Field>
 
-      <Field label={t(language, 'profile.form.verifiedMobile')} htmlFor="phoneNumber">
-        <span className="material-symbols-outlined text-secondary text-[20px] pl-1" style={{ fontVariationSettings: "'FILL' 1" }}>
-          verified
-        </span>
-        <input id="phoneNumber" className={`${inputClass} text-on-surface-variant`} value={formatPhone(phoneNumber)} readOnly
-          aria-readonly="true" tabIndex={-1} />
-        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container shrink-0">
-          {t(language, 'profile.form.otpVerified')}
-        </span>
-      </Field>
+      {phoneNumber ? (
+        <Field label={t(language, 'profile.form.verifiedMobile')} htmlFor="phoneNumber">
+          <span className="material-symbols-outlined text-secondary text-[20px] pl-1" style={{ fontVariationSettings: "'FILL' 1" }}>
+            verified
+          </span>
+          <input id="phoneNumber" className={`${inputClass} text-on-surface-variant`} value={formatPhone(phoneNumber)} readOnly
+            aria-readonly="true" tabIndex={-1} />
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container shrink-0">
+            {t(language, 'profile.form.otpVerified')}
+          </span>
+        </Field>
+      ) : null}
 
       <LocationFields values={values} initialValues={initialValues} errors={errors} language={language} onChange={setLocation} />
 

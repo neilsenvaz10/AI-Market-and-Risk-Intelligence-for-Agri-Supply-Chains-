@@ -244,12 +244,20 @@ describe('registration and dashboard regression', () => {
     }
   });
 
-  it('keeps unverified accounts in the required verification step', async () => {
+  it('keeps unverified email accounts in the required verification step', async () => {
+    identity.auth.currentUser = { ...user, emailVerified: false };
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Verify your email' });
+    expect(window.location.pathname).toBe('/verify-email');
+    expect(profileWrites()).toHaveLength(0);
+  });
+
+  it('allows accounts without phone to proceed to dashboard without OTP', async () => {
+    savedProfile = profile;
     identity.auth.currentUser = { ...user, phoneNumber: null };
     render(<App />);
-    await screen.findByRole('heading', { name: 'Verify your mobile' });
-    expect(window.location.pathname).toBe('/verify-phone');
-    expect(profileWrites()).toHaveLength(0);
+    await screen.findByRole('heading', { name: 'Hello, Test' });
+    expect(window.location.pathname).toBe('/');
   });
 
   it('navigates to the landing page when a logged-in farmer logs out', async () => {

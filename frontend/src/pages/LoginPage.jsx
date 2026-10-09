@@ -116,10 +116,6 @@ export default function LoginPage() {
           <Link to="/signup" className="text-secondary font-bold">{t(language, 'createAccount')}</Link>
         </p>
         <div className="flex items-center justify-center gap-space-md">
-          <Link to="/login/phone" className="text-secondary text-body-sm font-bold flex items-center gap-1">
-            <span className="material-symbols-outlined text-[16px]">sms</span>
-            <span>{t(language, 'auth.mobileOtpLogin')}</span>
-          </Link>
           <Link to="/onboarding" className="text-secondary text-body-sm font-bold flex items-center gap-1">
             <span className="material-symbols-outlined text-[16px]">translate</span>
             <span>{t(language, 'auth.changeLanguage')}</span>

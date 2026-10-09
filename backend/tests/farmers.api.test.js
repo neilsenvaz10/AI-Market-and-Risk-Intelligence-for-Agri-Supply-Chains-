@@ -267,14 +267,16 @@ describe('validation', () => {
     assert.equal(r.status, 400);
   });
 
-  test('profile creation requires a verified phone number in the token', async () => {
+  test('profile creation allows registration without a phone claim when phone verification is disabled', async () => {
     const r = await call('POST', '/api/farmers/me', { token: `valid:${UID_NO_PHONE}`, body: validProfile });
-    assert.equal(r.status, 400);
-    assert.equal(r.body.code, 'PHONE_NOT_VERIFIED');
+    assert.equal(r.status, 201);
   });
 });
 
 describe('email / phone registration requirements', () => {
+  before(() => { process.env.REQUIRE_PHONE_VERIFICATION = 'true'; });
+  after(() => { delete process.env.REQUIRE_PHONE_VERIFICATION; });
+
   const UID_E = `${PREFIX}email`;
   const PHONE_E = `+9195${rand()}`;
   const EMAIL_E = `Farmer.${process.pid}@Example.IN`;

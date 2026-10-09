@@ -27,6 +27,7 @@ import {
   updateProfile,
   isSignInWithEmailLink,
   sendSignInLinkToEmail,
+  sendPasswordResetEmail,
 } from 'firebase/auth';
 import { auth, firebaseConfigError, firebaseProjectId } from '../config/firebase';
 
@@ -231,6 +232,17 @@ export async function addEmailPassword(user, email, password) {
     logAuthError('sendEmailVerification', err);
   }
   return { user: linked, verificationEmailSent };
+}
+
+/** Sends a password reset email via Firebase. */
+export async function sendPasswordReset(email) {
+  try {
+    await sendPasswordResetEmail(requireAuth(), email.trim());
+  } catch (err) {
+    err.operation = 'sendPasswordResetEmail';
+    logAuthError(err.operation, err);
+    throw err;
+  }
 }
 
 const EMAIL_LINK_STORAGE_KEY = 'fasalytics.emailForLinking';

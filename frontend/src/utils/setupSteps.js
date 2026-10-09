@@ -15,7 +15,8 @@ export function getSetupStep(account, profileStatus) {
   // Older mobile-only accounts must add an email login: an address plus a password or Google.
   const hasEmailLogin = account.providers.includes('password') || account.providers.includes('google.com');
   if (!account.email || !hasEmailLogin) return SETUP_ROUTES.addEmail;
-  if (!account.phoneNumber) return SETUP_ROUTES.verifyPhone; // one-time OTP during registration
+  // OTP phone verification is disabled for now until SMS feature is implemented
+  // if (!account.phoneNumber) return SETUP_ROUTES.verifyPhone;
   if (!account.emailVerified) return SETUP_ROUTES.verifyEmail;
   if (profileStatus === 'missing') return SETUP_ROUTES.profile;
   return null;

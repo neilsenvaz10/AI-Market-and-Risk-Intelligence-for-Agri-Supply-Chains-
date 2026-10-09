@@ -74,7 +74,7 @@ export async function getMyProfile(req, res, next) {
  */
 export async function createMyProfile(req, res, next) {
   try {
-    if (!req.auth.phoneNumber) {
+    if (process.env.REQUIRE_PHONE_VERIFICATION === 'true' && !req.auth.phoneNumber) {
       throw new HttpError(400, 'PHONE_NOT_VERIFIED', 'Please verify your mobile number with OTP before completing registration.');
     }
     if (!req.auth.email) {

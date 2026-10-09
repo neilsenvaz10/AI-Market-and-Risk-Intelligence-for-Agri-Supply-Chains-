@@ -42,8 +42,10 @@ export default function SignupPage() {
     if (passwordError) e.password = passwordError;
     if (!values.confirmPassword) e.confirmPassword = t(language, 'auth.confirmPassword');
     else if (values.confirmPassword !== values.password) e.confirmPassword = t(language, 'auth.passwordsDoNotMatch');
-    const mobileError = validateIndianMobile(values.mobile);
-    if (mobileError) e.mobile = mobileError;
+    if (values.mobile && values.mobile.trim()) {
+      const mobileError = validateIndianMobile(values.mobile);
+      if (mobileError) e.mobile = mobileError;
+    }
     return e;
   };
 
@@ -103,9 +105,10 @@ export default function SignupPage() {
           <PasswordField id="confirmPassword" label={t(language, 'auth.confirmPassword')} value={values.confirmPassword} onChange={set('confirmPassword')}
             error={errors.confirmPassword} autoComplete="new-password" disabled={busy} />
           <div>
-            <span className="text-body-sm font-bold text-on-surface block mb-1">{t(language, 'auth.mobileNumber')}</span>
+            <span className="text-body-sm font-bold text-on-surface block mb-1">
+              {t(language, 'auth.mobileNumber')} <span className="text-xs font-normal text-on-surface-variant">(Optional)</span>
+            </span>
             <PhoneNumberField value={values.mobile} onChange={set('mobile')} error={errors.mobile} disabled={busy} />
-            <p className="text-[11px] text-on-surface-variant mt-1">{t(language, 'auth.verifyNextStep')}</p>
           </div>
 
           {error && <AuthAlert>{error}</AuthAlert>}
