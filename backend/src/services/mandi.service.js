@@ -315,7 +315,7 @@ export class MandiService {
       this.pool.query(
         `SELECT id, source, status, mode, window_from, window_to, records_fetched, records_valid,
                 records_inserted, records_updated, records_unchanged, records_rejected, records_failed,
-                conflicts_detected, is_sample_data, error_details, rejection_summary, triggered_by,
+                conflicts_detected, is_sample_data, error_details, rejection_summary,
                 execution_time_ms, started_at, synced_at
          FROM pipeline_sync_logs ORDER BY synced_at DESC, id DESC LIMIT 10`
       ),

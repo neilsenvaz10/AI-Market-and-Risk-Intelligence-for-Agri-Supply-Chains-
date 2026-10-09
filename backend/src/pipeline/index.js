@@ -223,9 +223,26 @@ export class MandiPipeline {
       stats.persistence_errors = persisted.errors.slice(0, 20);
       stats.latest_reporting_date = uniqueRecords.reduce((max, r) => (r.price_date > (max || '') ? r.price_date : max), null);
 
-      if (persisted.failed > 0) finish('PARTIAL_SUCCESS', 'PERSISTENCE_FAILURES', `${persisted.failed} record(s) could not be stored`);
-      else if (raw.length === 0) finish('NO_DATA', null, 'The source returned no records for the requested window');
-      else finish('SUCCESS');
+      const fetchMeta = provider.lastFetchMeta || null;
+      stats.truncated = Boolean(fetchMeta?.truncated);
+      stats.truncation = stats.truncated
+        ? { days_skipped: fetchMeta.daysSkipped || [], days_partial: fetchMeta.daysPartial || [], max_records: maxRecords }
+        : null;
+      stats.records_persisted = persisted.inserted + persisted.updated + persisted.unchanged;
+
+      if (raw.length === 0) finish('NO_DATA', null, 'The source returned no records for the requested window');
+      else if (stats.records_persisted === 0) {
+        // Nothing reached the database: never report this as a successful ingestion.
+        const reasons = Object.entries(stats.rejection_summary).map(([code, n]) => `${code}=${n}`).join(', ');
+        finish('FAILED', valid.length === 0 ? 'ALL_RECORDS_REJECTED' : 'NOTHING_PERSISTED',
+          valid.length === 0
+            ? `All ${raw.length} fetched record(s) were rejected (${reasons || 'no reason recorded'})`
+            : `${valid.length} valid record(s) but none were stored (${persisted.failed} failed)`);
+      } else if (persisted.failed > 0) finish('PARTIAL_SUCCESS', 'PERSISTENCE_FAILURES', `${persisted.failed} record(s) could not be stored`);
+      else if (stats.truncated) {
+        finish('PARTIAL_SUCCESS', 'RESULT_TRUNCATED',
+          `maxRecords=${maxRecords} reached; the oldest days were skipped or cut (skipped: ${(fetchMeta.daysSkipped || []).join(', ') || 'none'}; partial: ${(fetchMeta.daysPartial || []).join(', ') || 'none'})`);
+      } else finish('SUCCESS');
     } catch (err) {
       const code = err.code || 'PIPELINE_ERROR';
       // Failure text is scrubbed of credentials before it is logged or stored in pipeline_sync_logs.

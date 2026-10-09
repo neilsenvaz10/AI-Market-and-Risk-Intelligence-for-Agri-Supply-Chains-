@@ -133,10 +133,20 @@ export class DataGovInProvider extends BaseMandiProvider {
     }
     if (!fromDate || !toDate) throw new Error('DataGovInProvider requires fromDate and toDate');
     const records = [];
-    const meta = { requests: 0, days: datesBetween(fromDate, toDate), totalReported: {}, priceUnitSource: 'publisher-convention' };
+    const meta = {
+      requests: 0, days: datesBetween(fromDate, toDate), totalReported: {}, priceUnitSource: 'publisher-convention',
+      truncated: false, daysSkipped: [], daysPartial: [],
+    };
 
-    for (const day of meta.days) {
+    // Newest day first: when maxRecords stops the run, the oldest data is what is left out.
+    const newestFirst = [...meta.days].reverse();
+    for (const [dayIndex, day] of newestFirst.entries()) {
       let offset = 0;
+      if (records.length >= maxRecords) {
+        meta.truncated = true;
+        meta.daysSkipped.push(...newestFirst.slice(dayIndex));
+        break;
+      }
       while (records.length < maxRecords) {
         const limit = Math.min(PAGE_SIZE, maxRecords - records.length);
         const url = this.buildUrl({ offset, limit, state, district, commodity, arrivalDate: day });
@@ -151,7 +161,10 @@ export class DataGovInProvider extends BaseMandiProvider {
         offset += page.length;
         if (page.length < limit || offset >= meta.totalReported[day]) break;
       }
-      if (records.length >= maxRecords) break;
+      if (offset < (meta.totalReported[day] ?? 0)) {
+        meta.truncated = true;
+        meta.daysPartial.push(day);
+      }
     }
     this.lastFetchMeta = meta;
     return records;

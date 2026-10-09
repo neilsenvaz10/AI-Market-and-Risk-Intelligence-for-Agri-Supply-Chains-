@@ -285,3 +285,15 @@ test('secret files: .env is git-ignored and .env.example holds no credential val
     assert.ok(placeholder, `${name} in .env.example must be empty or an obvious placeholder`);
   }
 });
+
+test('unit-test wrapper: every secret-looking variable in .env.example is blanked for the unit tests', async () => {
+  const { BLANKED_ENV } = await import('../scripts/test-env.js');
+  const example = await fs.readFile(path.join(backendDir, '.env.example'), 'utf8');
+  const secretNames = [...example.matchAll(/^#?\s*([A-Z0-9_]*(?:KEY|SECRET|TOKEN|PASSWORD|PRIVATE|CREDENTIALS|SERVICE_ACCOUNT)[A-Z0-9_]*)=/gm)].map((m) => m[1]);
+  assert.ok(secretNames.includes('CEDA_API_KEY') && secretNames.includes('DATA_GOV_IN_API_KEY'));
+  const missing = [...new Set(secretNames)].filter((name) => !(name in BLANKED_ENV));
+  assert.deepEqual(missing, [], `add these to scripts/test-env.js so unit tests can never read a real value: ${missing.join(', ')}`);
+  for (const [name, value] of Object.entries(BLANKED_ENV)) {
+    if (/KEY|SECRET|TOKEN|PRIVATE|CLIENT_EMAIL|SERVICE_ACCOUNT|APPLICATION_CREDENTIALS|DATABASE_URL/.test(name)) assert.equal(value, '', name);
+  }
+});

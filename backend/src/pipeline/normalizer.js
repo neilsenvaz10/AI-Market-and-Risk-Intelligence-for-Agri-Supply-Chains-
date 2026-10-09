@@ -43,6 +43,9 @@ const COMMODITY_ALIASES = {
   cotton: 'COTTON', kapas: 'COTTON', kapus: 'COTTON', 'कपास': 'COTTON', 'कापूस': 'COTTON',
 };
 
+// Alias lookup goes through nameKey so spelling variants (case, punctuation, Unicode form) match.
+const ALIAS_BY_KEY = new Map(Object.entries(COMMODITY_ALIASES).map(([alias, code]) => [alias.normalize('NFKC').toLowerCase(), code]));
+
 const COMMODITY_META = {
   ONION: { name: 'Onion', hindi: 'प्याज', marathi: 'कांदा', category: 'Vegetables' },
   TOMATO: { name: 'Tomato', hindi: 'टमाटर', marathi: 'टोमॅटो', category: 'Vegetables' },
@@ -68,7 +71,7 @@ export function nameKey(value) {
   return text
     .normalize('NFKC')
     .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .replace(/[^\p{L}\p{M}\p{N}]+/gu, ' ') // \p{M}: keep Devanagari vowel signs and virama
     .trim() || null;
 }
 
@@ -135,7 +138,7 @@ export function normalizeCommodity(value) {
   const name = cleanText(value);
   const key = nameKey(value);
   if (!name || !key) return null;
-  const knownCode = COMMODITY_ALIASES[key];
+  const knownCode = ALIAS_BY_KEY.get(key);
   if (knownCode) return { code: knownCode, ...COMMODITY_META[knownCode] };
   return { code: makeCode([name]), name, hindi: null, marathi: null, category: null };
 }

@@ -20,7 +20,7 @@ import { redactText } from '../src/pipeline/http.js';
 import { pool } from '../src/db.js';
 import { CedaProvider } from '../src/pipeline/providers/ceda.provider.js';
 import { MandiPersister } from '../src/pipeline/persister.js';
-import { importCedaExport, runCedaExport } from '../src/pipeline/historical/ceda-export.js';
+import { exportExitCode, importCedaExport, runCedaExport } from '../src/pipeline/historical/ceda-export.js';
 import { abortOnSignals, parseArgs, requireDatabaseConfirmation } from './cli-utils.js';
 
 const backendDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -74,7 +74,7 @@ async function main() {
     signal: controller.signal,
   });
   console.log(JSON.stringify(summary, null, 2));
-  if (summary.stoppedReason) process.exitCode = 2;
+  process.exitCode = exportExitCode(summary);
 }
 
 main()

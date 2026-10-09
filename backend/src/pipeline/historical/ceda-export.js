@@ -77,7 +77,7 @@ export async function runCedaExport({
   });
   const marketIds = (scope.markets || []).map((m) => m.market_id).filter(Boolean);
   const marketNames = new Map((scope.markets || []).map((m) => [String(m.market_id), m.market_name]));
-  const summary = { tasksPlanned: 0, tasksCompleted: 0, tasksSkipped: 0, rowsWritten: 0, rowsValid: 0, rowsRejected: 0,
+  const summary = { tasksPlanned: 0, tasksCompleted: 0, tasksFailed: 0, tasksSkipped: 0, rowsWritten: 0, rowsValid: 0, rowsRejected: 0,
     imported: { inserted: 0, updated: 0, unchanged: 0, failed: 0 }, stoppedReason: null, manifestPath };
 
   const windows = splitDateRange(range.from, range.to, windowDays);
@@ -145,6 +145,7 @@ export async function runCedaExport({
       log.log?.(`[CedaExport] ${id}: ${written.rows} rows (${valid.length} valid) -> ${csvFile}`);
     } catch (err) {
       const safeMessage = redactText(err.message, [provider.client?.apiKey]);
+      summary.tasksFailed += 1;
       await manifest.update(id, { status: 'failed', window, error: safeMessage.slice(0, 300) });
       if (['LOW_DISK_SPACE', 'DOWNLOAD_BUDGET_EXCEEDED', 'ABORTED', 'UNAUTHORIZED', 'SOURCE_NOT_CONFIGURED'].includes(err.code)) {
         summary.stoppedReason = safeMessage;
@@ -188,4 +189,15 @@ export async function importCedaExport({ manifestPath, persister, log = console 
     log.log?.(`[CedaImport] ${id}: inserted=${result.inserted} updated=${result.updated} unchanged=${result.unchanged} failed=${result.failed}`);
   }
   return totals;
+}
+
+/**
+ * Process exit code for an export summary: 0 clean, 1 every attempted window failed,
+ * 2 stopped early (disk, budget, auth, interrupt), 3 some windows failed but others finished.
+ */
+export function exportExitCode(summary) {
+  if (summary.tasksFailed > 0 && summary.tasksCompleted === 0 && summary.tasksSkipped === 0) return 1;
+  if (summary.stoppedReason) return 2;
+  if (summary.tasksFailed > 0) return 3;
+  return 0;
 }

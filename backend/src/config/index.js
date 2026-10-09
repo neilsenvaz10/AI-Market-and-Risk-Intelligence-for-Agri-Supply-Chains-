@@ -11,7 +11,7 @@ export const config = {
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT || '5432', 10),
     user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD || 'postgres',
+    password: process.env.DB_PASSWORD || undefined, // no literal fallback: set DB_PASSWORD in backend/.env
     database: process.env.DB_NAME || 'fasalytics',
     connectionString: process.env.DATABASE_URL || undefined,
   },

@@ -1,4 +1,14 @@
+# FASALYTICS ML service runtime dependencies.
 fastapi>=0.110.0
 uvicorn[standard]>=0.28.0
 pydantic>=2.6.0
 python-dotenv>=1.0.1
+
+# Phase 4 — price forecasting subsystem (ml-service/forecasting).
+# The Phase 1 health endpoint above needs none of these; they are required by
+# `npm run forecast:train` / `npm run forecast:generate`.
+numpy>=1.26
+pandas>=2.0
+scikit-learn>=1.3
+psycopg2-binary>=2.9
+joblib>=1.3

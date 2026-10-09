@@ -12,17 +12,22 @@ import { fileURLToPath } from 'node:url';
 
 const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../database/migrations');
 const PHASE3 = ['004_mandi_data_pipeline.sql', '005_mandi_pipeline_integrity.sql', '006_agmarknet_commodity_reports.sql'];
+const PHASE4 = ['007_phase4_forecasting.sql'];
 const PHASE2_TABLES = ['farmers', 'farmer_identities', 'schema_migrations'];
 
 // Comments and string literals are removed so only executable SQL is scanned.
 const strip = (sql) => sql.replace(/--.*$/gm, '').replace(/'(?:[^']|'')*'/g, "''");
 const statements = (sql) => strip(sql).split(';').map((s) => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
 
-for (const file of PHASE3) {
+for (const file of [...PHASE3, ...PHASE4]) {
   test(`${file}: no destructive statements`, async () => {
     const sql = strip(await fs.readFile(path.join(dir, file), 'utf8'));
-    for (const forbidden of [/\bDROP\s+TABLE\b/i, /\bTRUNCATE\b/i, /\bDELETE\s+FROM\b/i, /\bDROP\s+COLUMN\b/i,
-      /\bDROP\s+SCHEMA\b/i, /\bDROP\s+DATABASE\b/i, /\bDROP\s+INDEX\b/i, /\bCASCADE\b/i]) {
+    const forbiddenPatterns = [/\bDROP\s+TABLE\b/i, /\bTRUNCATE\b/i, /\bDELETE\s+FROM\b/i, /\bDROP\s+COLUMN\b/i,
+      /\bDROP\s+SCHEMA\b/i, /\bDROP\s+DATABASE\b/i, /\bDROP\s+INDEX\b/i];
+    // Phase 3 must not cascade-protect away price history. Phase 4 legitimately uses
+    // ON DELETE CASCADE for its own derived rows (checked separately below).
+    if (PHASE3.includes(file)) forbiddenPatterns.push(/\bCASCADE\b/i);
+    for (const forbidden of forbiddenPatterns) {
       assert.ok(!forbidden.test(sql), `${file} must not contain ${forbidden}`);
     }
   });
@@ -33,8 +38,10 @@ for (const file of PHASE3) {
       assert.ok(!new RegExp(`\\b${table}\\b`, 'i').test(sql), `${file} must not reference ${table}`);
     }
   });
+}
 
-  test(`${file}: data-modifying statements are limited to Phase 3 tables`, async () => {
+test('Phase 3 migrations: data-modifying statements are limited to Phase 3 tables', async () => {
+  for (const file of PHASE3) {
     const sql = await fs.readFile(path.join(dir, file), 'utf8');
     for (const statement of statements(sql)) {
       const write = statement.match(/^(?:INSERT\s+INTO|UPDATE)\s+("?[\w.]+"?)/i);
@@ -43,8 +50,38 @@ for (const file of PHASE3) {
           `unexpected write target: ${statement.slice(0, 80)}`);
       }
     }
-  });
-}
+  }
+});
+
+/**
+ * Phase 4 must be additive: it may create its own forecast tables but must never
+ * write to (or read from) the Phase 1-3 market and farmer data.
+ */
+test('007: writes only to its own forecast tables and reads no Phase 3 data', async () => {
+  const sql = await fs.readFile(path.join(dir, PHASE4[0]), 'utf8');
+  for (const statement of statements(sql)) {
+    const write = statement.match(/^(?:INSERT\s+INTO|UPDATE)\s+("?[\w.]+"?)/i);
+    if (write) {
+      assert.match(write[1], /^(forecast_runs|forecasts)$/i, `unexpected write target: ${statement.slice(0, 80)}`);
+    }
+    // A CREATE TABLE ... AS SELECT, or any SELECT from Phase 3 tables, would couple
+    // Phase 4 to data it must only read through the application layer.
+    assert.ok(!/\bSELECT\b/i.test(sql), '007 must not contain a SELECT');
+  }
+  // Price history is never a cascade target of a Phase 4 delete.
+  assert.ok(!/REFERENCES\s+(mandi_prices|mandis|commodities)\s*\([^)]*\)\s*ON\s+DELETE\s+CASCADE/i.test(sql));
+});
+
+test('007: the only CASCADE is on the derived forecast rows', async () => {
+  const sql = strip(await fs.readFile(path.join(dir, PHASE4[0]), 'utf8'));
+  const cascades = [...sql.matchAll(/(\w+)\s+INTEGER\s+NOT NULL\s+REFERENCES\s+(\w+)\(id\)\s+ON\s+DELETE\s+CASCADE/gi)];
+  assert.equal(cascades.length, 1, 'exactly one cascade is expected');
+  assert.equal(cascades[0][1], 'run_id');
+  assert.equal(cascades[0][2], 'forecast_runs');
+  // Every other foreign key must protect its parent row.
+  const restrict = [...sql.matchAll(/ON\s+DELETE\s+RESTRICT/gi)];
+  assert.ok(restrict.length >= 4, 'commodity/mandi references must stay RESTRICT');
+});
 
 test('005: only a derived view, replaced constraints and NOT NULL/DEFAULT relaxations are dropped', async () => {
   const sql = strip(await fs.readFile(path.join(dir, PHASE3[1]), 'utf8'));
@@ -79,7 +116,7 @@ test('005: column type changes only widen', async () => {
   }
 });
 
-test('migration directory: Phase 3 files come after Phase 2 files and numbers are unique', async () => {
+test('migration directory: files are ordered by phase and numbers are unique', async () => {
   const files = (await fs.readdir(dir)).filter((f) => f.endsWith('.sql')).sort();
-  assert.deepEqual(files, ['002_phase2_farmers.sql', '003_phase2_email_identity.sql', ...PHASE3]);
+  assert.deepEqual(files, ['002_phase2_farmers.sql', '003_phase2_email_identity.sql', ...PHASE3, ...PHASE4]);
 });

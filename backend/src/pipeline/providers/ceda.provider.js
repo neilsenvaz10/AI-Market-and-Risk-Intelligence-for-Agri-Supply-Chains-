@@ -229,6 +229,7 @@ export class CedaProvider extends BaseMandiProvider {
     const marketIds = (scope.markets || []).map((m) => m.market_id).filter(Boolean);
     const marketNames = new Map((scope.markets || []).map((m) => [String(m.market_id), m.market_name]));
     const records = [];
+    let windowsDone = 0;
     for (const window of splitDateRange(from, to, this.windowDays)) {
       const request = {
         commodityId: scope.commodityId, stateId: scope.stateId, districtIds: [scope.districtId],
@@ -238,8 +239,11 @@ export class CedaProvider extends BaseMandiProvider {
       const prices = await this.client.getPrices(request);
       const quantities = await this.client.getQuantities(request);
       records.push(...buildCedaRecords(prices, quantities, { ...scope, marketNames }));
+      windowsDone += 1;
       if (records.length >= maxRecords) break;
     }
+    const windowsTotal = splitDateRange(from, to, this.windowDays).length;
+    this.lastFetchMeta = { truncated: records.length > maxRecords || (records.length >= maxRecords && windowsDone < windowsTotal), daysSkipped: [], daysPartial: [] };
     return records.slice(0, maxRecords);
   }
 }

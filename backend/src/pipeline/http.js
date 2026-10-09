@@ -48,6 +48,32 @@ export function redactUrl(rawUrl) {
   }
 }
 
+/**
+ * Reads a response body with its own deadline. The request timer only covers the time
+ * until headers arrive, so a stalled or slow-drip body would otherwise wait forever.
+ * Both the per-request timeout and the caller's abort signal end the read.
+ */
+async function readBody(response, { timeoutMs, signal, label, url, controller }) {
+  let timer;
+  let onAbort;
+  const guard = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      controller.abort(new Error('body timeout'));
+      reject(new SourceHttpError(`${label} response body timed out after ${timeoutMs} ms`, { code: 'TIMEOUT', retryable: true, url }));
+    }, timeoutMs);
+    onAbort = () => reject(new SourceHttpError(`${label} request aborted`, { code: 'ABORTED', url }));
+    if (signal?.aborted) onAbort();
+    else signal?.addEventListener('abort', onAbort, { once: true });
+  });
+  try {
+    return await Promise.race([response.text(), guard]);
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', onAbort);
+    guard.catch(() => {});
+  }
+}
+
 const sleep = (ms, signal) =>
   new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(signal.reason || new Error('Aborted'));
@@ -124,7 +150,7 @@ export function createSourceHttpClient({
       signal?.removeEventListener('abort', onAbort);
 
       if (response.ok) {
-        const text = await response.text();
+        const text = await readBody(response, { timeoutMs, signal, label, url: safeUrl, controller });
         try {
           return { status: response.status, data: JSON.parse(text), rawText: text, headers: response.headers };
         } catch {
@@ -142,7 +168,7 @@ export function createSourceHttpClient({
         url: safeUrl,
       });
       // Body is drained but never echoed: error bodies can reflect submitted credentials.
-      await response.text().catch(() => {});
+      await readBody(response, { timeoutMs, signal, label, url: safeUrl, controller }).catch(() => {});
       if (!retryable || attempt > retries) throw error;
       const delay = Math.min(maxBackoffMs, retryAfterMs(response.headers.get('retry-after')) ?? baseBackoffMs * 2 ** (attempt - 1));
       log.warn?.(`[SourceHttp] ${error.message}; retry ${attempt}/${retries} in ${delay} ms (${safeUrl})`);

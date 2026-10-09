@@ -19,7 +19,7 @@ function parse(validator, input) {
 
 // Pipeline outcomes that are not a successful ingestion map to explicit HTTP statuses.
 const RUN_STATUS_HTTP = { SKIPPED: 409, REFUSED: 403 };
-const RUN_ERROR_HTTP = { SOURCE_NOT_CONFIGURED: 503, NO_PROVIDER: 400, UNAUTHORIZED: 502, RATE_LIMITED: 503, NETWORK_ERROR: 502, TIMEOUT: 504 };
+const RUN_ERROR_HTTP = { SOURCE_NOT_CONFIGURED: 503, NO_PROVIDER: 400, UNAUTHORIZED: 502, RATE_LIMITED: 503, NETWORK_ERROR: 502, TIMEOUT: 504, ALL_RECORDS_REJECTED: 422, NOTHING_PERSISTED: 502 };
 
 /** Builds the mandi controller; service and pipeline are injectable for tests. */
 export function createMandiController({ mandiService = defaultMandiService, pipeline = defaultPipeline } = {}) {

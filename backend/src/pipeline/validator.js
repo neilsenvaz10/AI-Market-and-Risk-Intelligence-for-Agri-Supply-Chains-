@@ -32,6 +32,7 @@ export function validateMandiRecord(record, { now = new Date() } = {}) {
   }
 
   if (!record.source) fail('MISSING_SOURCE', 'Source identity is required');
+  else if (!GENUINE_SOURCES.has(record.source) && !SAMPLE_SOURCES.has(record.source)) fail('UNKNOWN_SOURCE', `Source ${record.source} is not a registered mandi source`);
   if (GENUINE_SOURCES.has(record.source) && record.is_sample_data) {
     fail('SAMPLE_FLAG_ON_GENUINE_SOURCE', `${record.source} records cannot be flagged as sample data`);
   }
