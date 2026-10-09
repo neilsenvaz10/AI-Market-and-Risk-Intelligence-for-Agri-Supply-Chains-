@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#00260d" />
+    <title>Fasalytics — Offline</title>
+    <style>
+      body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f6fbf1; color: #181d18; font-family: Inter, 'Noto Sans Devanagari', system-ui, sans-serif; }
+      main { max-width: 28rem; padding: 1.5rem; text-align: center; }
+      h1 { margin: 0 0 .5rem; color: #00260d; font-size: 1.5rem; }
+      p { margin: .25rem 0 1rem; line-height: 1.5; }
+      section { margin-bottom: 1.25rem; }
+      button { background: #00260d; color: #fff; border: 0; border-radius: .75rem; padding: .75rem 1.5rem; font-size: 1rem; cursor: pointer; }
+      button:focus-visible { outline: 3px solid #a1d2a7; outline-offset: 2px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section lang="en">
+        <h1>You are offline</h1>
+        <p>Fasalytics needs an internet connection for market prices, forecasts and risk information. No saved prices are shown, so you never see old numbers presented as current.</p>
+      </section>
+      <section lang="hi">
+        <h1>आप ऑफ़लाइन हैं</h1>
+        <p>मंडी भाव, पूर्वानुमान और जोखिम जानकारी के लिए इंटरनेट ज़रूरी है। पुराने भाव नहीं दिखाए जाते, ताकि वे आज के भाव न समझे जाएँ।</p>
+      </section>
+      <section lang="mr">
+        <h1>तुम्ही ऑफलाइन आहात</h1>
+        <p>बाजारभाव, अंदाज आणि जोखीम माहितीसाठी इंटरनेट आवश्यक आहे. जुने भाव दाखवले जात नाहीत, जेणेकरून ते आजचे भाव समजले जाणार नाहीत.</p>
+      </section>
+      <button type="button" onclick="location.reload()">Retry · पुन्हा प्रयत्न करें · पुन्हा प्रयत्न करा</button>
+    </main>
+  </body>
+</html>

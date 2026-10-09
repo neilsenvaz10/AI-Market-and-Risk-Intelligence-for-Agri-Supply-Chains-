@@ -15,6 +15,9 @@ export const BLANKED_ENV = {
   MANDI_DATA_PROVIDER: '',
   MANDI_ALLOW_SAMPLE_DATA: '',
   MANDI_SYNC_INTERVAL_MINUTES: '0',
+  // voice + chat assistant
+  GROQ_API_KEY: '',
+  SARVAM_API_KEY: '',
   // e-mail
   EMAIL_PROVIDER: '',
   EMAIL_API_KEY: '',

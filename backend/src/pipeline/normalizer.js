@@ -143,6 +143,25 @@ export function normalizeCommodity(value) {
   return { code: makeCode([name]), name, hindi: null, marathi: null, category: null };
 }
 
+/**
+ * Finds the first known commodity mentioned in free text (English, Hindi or Marathi).
+ * Whole-word / two-word matches against the exact alias table only -- no substring
+ * matching, so "sweet potato" is not read as "potato". Returns the canonical code or null.
+ */
+export function detectCommodityCode(text) {
+  const words = (nameKey(text) || '').split(' ').filter(Boolean);
+  for (let i = 0; i < words.length; i += 1) {
+    const pair = ALIAS_BY_KEY.get(`${words[i]} ${words[i + 1] ?? ''}`.trim());
+    if (words[i + 1] && pair) return pair;
+    if (ALIAS_BY_KEY.has(words[i])) {
+      // "sweet potato": a preceding qualifier means this is a different commodity.
+      if (words[i - 1] === 'sweet') continue;
+      return ALIAS_BY_KEY.get(words[i]);
+    }
+  }
+  return null;
+}
+
 /** Market identity = (state, district, market). Returns null when any part is missing. */
 export function normalizeMandi(market, district, state) {
   const name = cleanText(market);
@@ -253,6 +272,7 @@ export default {
   normalizePriceUnit,
   normalizeArrivalUnit,
   normalizeCommodity,
+  detectCommodityCode,
   normalizeMandi,
   normalizeMandiRecord,
 };

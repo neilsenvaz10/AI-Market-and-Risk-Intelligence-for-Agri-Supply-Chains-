@@ -58,14 +58,16 @@ async function sendRequest(baseUrl, endpoint, options) {
  * @param {{ method?: string, body?: object, token?: string }} options
  */
 export async function apiRequest(endpoint, { method = 'GET', body, token } = {}) {
+  // A Blob body (e.g. a voice recording) is sent as-is with its own content type.
+  const isBlob = typeof Blob !== 'undefined' && body instanceof Blob;
   const options = {
     method,
     headers: {
       Accept: 'application/json',
-      ...(body !== undefined && { 'Content-Type': 'application/json' }),
+      ...(body !== undefined && { 'Content-Type': isBlob ? body.type || 'application/octet-stream' : 'application/json' }),
       ...(token && { Authorization: `Bearer ${token}` }),
     },
-    ...(body !== undefined && { body: JSON.stringify(body) }),
+    ...(body !== undefined && { body: isBlob ? body : JSON.stringify(body) }),
   };
 
   let res;
