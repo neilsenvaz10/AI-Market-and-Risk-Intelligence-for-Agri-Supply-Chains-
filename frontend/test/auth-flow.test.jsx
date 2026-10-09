@@ -251,4 +251,15 @@ describe('registration and dashboard regression', () => {
     expect(window.location.pathname).toBe('/verify-phone');
     expect(profileWrites()).toHaveLength(0);
   });
+
+  it('navigates to the landing page when a logged-in farmer logs out', async () => {
+    savedProfile = profile;
+    window.history.replaceState({}, '', '/profile');
+    render(<App />);
+    await screen.findByText(profile.fullName);
+    const logoutBtn = await screen.findByRole('button', { name: /Log Out/i });
+    fireEvent.click(logoutBtn);
+    await screen.findByRole('heading', { name: /Sell Smarter\. Earn Better\./i });
+    expect(window.location.pathname).toBe('/landing');
+  });
 });

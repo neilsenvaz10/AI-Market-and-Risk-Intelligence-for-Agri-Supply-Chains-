@@ -472,7 +472,7 @@ export function useLogout() {
     setLogoutError(null);
     try {
       await logout();
-      navigate('/login', { replace: true });
+      navigate('/landing', { replace: true });
     } catch {
       setLogoutError('Could not log out. Please check your connection and try again.');
     } finally {
