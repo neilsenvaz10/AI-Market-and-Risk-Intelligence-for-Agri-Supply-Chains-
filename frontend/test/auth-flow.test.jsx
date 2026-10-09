@@ -270,4 +270,19 @@ describe('registration and dashboard regression', () => {
     await screen.findByRole('heading', { name: /Sell Smarter\. Earn Better\./i });
     expect(window.location.pathname).toBe('/landing');
   });
+
+  it('requires a mobile number on the signup page and displays error if missing', async () => {
+    identity.auth.currentUser = null;
+    window.history.replaceState({}, '', '/signup');
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Create your account' });
+    expect(screen.queryByText(/Optional/i)).toBeNull();
+    fireEvent.change(screen.getByLabelText('Full Name'), { target: { value: 'Ramesh Patil' } });
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'ramesh@example.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'ValidPass123!' } });
+    fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'ValidPass123!' } });
+    fireEvent.click(screen.getByRole('button', { name: /Create Account/i }));
+    await screen.findByText('Please enter your mobile number.');
+  });
 });
+

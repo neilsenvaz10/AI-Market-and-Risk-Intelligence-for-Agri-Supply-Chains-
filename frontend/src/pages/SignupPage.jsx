@@ -42,10 +42,8 @@ export default function SignupPage() {
     if (passwordError) e.password = passwordError;
     if (!values.confirmPassword) e.confirmPassword = t(language, 'auth.confirmPassword');
     else if (values.confirmPassword !== values.password) e.confirmPassword = t(language, 'auth.passwordsDoNotMatch');
-    if (values.mobile && values.mobile.trim()) {
-      const mobileError = validateIndianMobile(values.mobile);
-      if (mobileError) e.mobile = mobileError;
-    }
+    const mobileError = validateIndianMobile(values.mobile);
+    if (mobileError) e.mobile = mobileError;
     return e;
   };
 
@@ -106,7 +104,7 @@ export default function SignupPage() {
             error={errors.confirmPassword} autoComplete="new-password" disabled={busy} />
           <div>
             <span className="text-body-sm font-bold text-on-surface block mb-1">
-              {t(language, 'auth.mobileNumber')} <span className="text-xs font-normal text-on-surface-variant">(Optional)</span>
+              {t(language, 'auth.mobileNumber')}
             </span>
             <PhoneNumberField value={values.mobile} onChange={set('mobile')} error={errors.mobile} disabled={busy} />
           </div>
