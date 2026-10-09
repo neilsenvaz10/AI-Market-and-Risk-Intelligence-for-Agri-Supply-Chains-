@@ -12,6 +12,34 @@ const STRINGS = {
      AUTHENTICATION / ONBOARDING
   ───────────────────────────────────────────── */
   en: {
+    /* Phase 7 - AI Farmer Copilot */
+    'copilot.title': 'AI Farmer Copilot',
+    'copilot.subtitle': 'Ask about mandi prices, historical trends, and price forecasts',
+    'copilot.badge.verified': 'Verified Data',
+    'copilot.badge.forecast': 'Forecast',
+    'copilot.badge.groq': 'Groq Powered',
+    'copilot.badge.deterministic': 'Rule Engine',
+    'copilot.welcome.title': 'Welcome to your AI Market Copilot',
+    'copilot.welcome.prompt': 'Ask any question about agricultural prices, market trends, or price forecasts.',
+    'copilot.suggest1': 'What is the latest onion price in Nashik?',
+    'copilot.suggest2': 'How have tomato prices changed?',
+    'copilot.suggest3': 'What does the seven-day forecast suggest for onion?',
+    'copilot.suggest4': 'What is a prediction interval?',
+    'copilot.suggest5': 'What risks should I consider?',
+    'copilot.sources': 'Data Sources',
+    'copilot.limitations': 'Important Note',
+    'copilot.send': 'Send',
+    'copilot.inputPlaceholder': 'Ask about prices, mandis, or forecasts...',
+    'copilot.thinking': 'Consulting verified market data...',
+    'copilot.error': 'Could not retrieve answer. Please try again.',
+    'copilot.disclaimer': 'Prices are based on reported mandi records. Forecasts are statistical estimates, not guarantees.',
+    'copilot.observationDate': 'Reported Date',
+    'copilot.forecastDate': 'Forecast Date',
+    'copilot.modalPrice': 'Modal Price',
+    'copilot.priceRange': 'Range',
+    'copilot.confidence': 'Confidence',
+    'copilot.predictionInterval': 'Interval',
+
     /* Auth — shared */
     emailLoginTitle: 'Log in to your account',
     emailLoginSubtitle: 'Use your email and password, or continue with Google',
@@ -383,6 +411,34 @@ const STRINGS = {
      HINDI
   ───────────────────────────────────────────── */
   hi: {
+    /* Phase 7 - AI Farmer Copilot */
+    'copilot.title': 'एआई किसान साथी',
+    'copilot.subtitle': 'मंडी भाव, ऐतिहासिक रुझान और मूल्य पूर्वानुमान पूछें',
+    'copilot.badge.verified': 'सत्यापित डेटा',
+    'copilot.badge.forecast': 'पूर्वानुमान',
+    'copilot.badge.groq': 'Groq एआई',
+    'copilot.badge.deterministic': 'नियम आधारित',
+    'copilot.welcome.title': 'आपके एआई मंडी साथी में स्वागत है',
+    'copilot.welcome.prompt': 'कृषि मंडी भाव, बाजार रुझान या मूल्य पूर्वानुमान के बारे में प्रश्न पूछें।',
+    'copilot.suggest1': 'नासिक में प्याज का नवीनतम भाव क्या है?',
+    'copilot.suggest2': 'टमाटर के भाव कैसे बदले हैं?',
+    'copilot.suggest3': 'प्याज के लिए 7 दिन का पूर्वानुमान क्या है?',
+    'copilot.suggest4': 'प्रेडिक्शन इंटरवल क्या होता है?',
+    'copilot.suggest5': 'मुझे किन जोखिमों पर विचार करना चाहिए?',
+    'copilot.sources': 'डेटा स्रोत',
+    'copilot.limitations': 'महत्वपूर्ण सूचना',
+    'copilot.send': 'भेजें',
+    'copilot.inputPlaceholder': 'भाव, मंडी या पूर्वानुमान के बारे में पूछें...',
+    'copilot.thinking': 'सत्यापित मंडी डेटा का विश्लेषण हो रहा है...',
+    'copilot.error': 'उत्तर प्राप्त नहीं हो सका। कृपया पुनः प्रयास करें।',
+    'copilot.disclaimer': 'भाव मंडी रिपोर्ट पर आधारित हैं। पूर्वानुमान सांख्यिकीय अनुमान हैं, गारंटी नहीं।',
+    'copilot.observationDate': 'रिपोर्ट दिनांक',
+    'copilot.forecastDate': 'पूर्वानुमान दिनांक',
+    'copilot.modalPrice': 'मोडल भाव',
+    'copilot.priceRange': 'मूल्य सीमा',
+    'copilot.confidence': 'विश्वसनीयता',
+    'copilot.predictionInterval': 'अनुमानित सीमा',
+
     /* Auth */
     emailLoginTitle: 'अपने खाते में लॉगिन करें',
     emailLoginSubtitle: 'ईमेल और पासवर्ड का उपयोग करें, या Google से जारी रखें',
@@ -754,6 +810,34 @@ const STRINGS = {
      MARATHI
   ───────────────────────────────────────────── */
   mr: {
+    /* Phase 7 - AI Farmer Copilot */
+    'copilot.title': 'एआय शेतकरी सल्लागार',
+    'copilot.subtitle': 'बाजारभाव, मागील कल आणि भाव अंदाज विचारा',
+    'copilot.badge.verified': 'पडताळलेला डेटा',
+    'copilot.badge.forecast': 'भाव अंदाज',
+    'copilot.badge.groq': 'Groq एआय',
+    'copilot.badge.deterministic': 'नियम आधारित',
+    'copilot.welcome.title': 'आपल्या एआय बाजार सल्लागारात स्वागत',
+    'copilot.welcome.prompt': 'शेतीमालाचे बाजारभाव, बाजारातील चढउतार किंवा भाव अंदाजांबद्दल प्रश्न विचारा.',
+    'copilot.suggest1': 'नाशिकमध्ये कांद्याचा नवीनतम बाजारभाव किती आहे?',
+    'copilot.suggest2': 'टोमॅटोचे भाव कसे बदलले आहेत?',
+    'copilot.suggest3': 'कांद्यासाठी ७ दिवसांचा अंदाज काय आहे?',
+    'copilot.suggest4': 'प्रेडिक्शन इंटरव्हल म्हणजे काय?',
+    'copilot.suggest5': 'मी कोणत्या जोखमींचा विचार करावा?',
+    'copilot.sources': 'माहितीचे स्रोत',
+    'copilot.limitations': 'महत्त्वाची नोंद',
+    'copilot.send': 'पाठवा',
+    'copilot.inputPlaceholder': 'भाव, बाजार किंवा अंदाजांबद्दल विचारा...',
+    'copilot.thinking': 'पडताळलेल्या बाजार डेटाचे विश्लेषण होत आहे...',
+    'copilot.error': 'माहिती मिळवता आली नाही. कृपया पुन्हा प्रयत्न करा.',
+    'copilot.disclaimer': 'भाव नोंदवलेल्या बाजार नोंदींवर आधारित आहेत. अंदाज हे सांख्यिकीय अंदाज आहेत, हमी नाही.',
+    'copilot.observationDate': 'नोंद तारीख',
+    'copilot.forecastDate': 'अंदाज तारीख',
+    'copilot.modalPrice': 'मोडल भाव',
+    'copilot.priceRange': 'भाव कक्षा',
+    'copilot.confidence': 'खात्री',
+    'copilot.predictionInterval': 'अंदाजित मर्यादा',
+
     /* Auth */
     emailLoginTitle: 'तुमच्या खात्यात लॉगिन करा',
     emailLoginSubtitle: 'ईमेल आणि पासवर्ड वापरा, किंवा Google ने पुढे जा',

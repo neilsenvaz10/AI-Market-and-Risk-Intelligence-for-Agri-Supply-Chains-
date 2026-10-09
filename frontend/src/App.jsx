@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from './layouts/MainLayout';
 import HomePage from './pages/HomePage';
@@ -40,7 +40,7 @@ function App() {
             <Route path="verify-otp" element={<VerifyOtpPage />} />
             <Route path="forgot-password" element={<ForgotPasswordPage />} />
             <Route path="forgot-password/new" element={<ResetPasswordPage />} />
-            {/* Registration steps — each reachable only while it is the current step */}
+            {/* Registration steps â€” each reachable only while it is the current step */}
             <Route element={<ProtectedRoute step={SETUP_ROUTES.addEmail} />}>
               <Route path="account/email" element={<AddEmailPage />} />
             </Route>
@@ -60,7 +60,7 @@ function App() {
             <Route path="onboarding" element={<SplashOnboardingPage />} />
             <Route element={<ProtectedRoute />}>
               <Route index element={<HomePage />} />
-              <Route path="ask-ai" element={<AskAiPage />} />
+              <Route path="ask-ai" element={<AskAiPage />} /><Route path="copilot" element={<AskAiPage />} />
               <Route path="recommendation" element={<RecommendationResultPage />} />
               <Route path="mandis" element={<MandisPage />} />
               <Route path="alerts" element={<AlertsPage />} />

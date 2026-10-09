@@ -1,4 +1,4 @@
-import express from 'express';
+﻿import express from 'express';
 import cors from 'cors';
 import { config } from './config/index.js';
 import healthRoutes from './routes/health.routes.js';
@@ -6,6 +6,7 @@ import createAuthRoutes from './routes/auth.routes.js';
 import createFarmerRoutes from './routes/farmer.routes.js';
 import createMandiRoutes from './routes/mandi.routes.js';
 import createForecastRoutes from './routes/forecast.routes.js';
+import createCopilotRoutes from './routes/copilot.routes.js';
 import { requireAuth as defaultRequireAuth } from './middleware/auth.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { createEmailProvider } from './services/email/emailProvider.js';
@@ -19,15 +20,14 @@ export function createDefaultWelcomeEmailService() {
 }
 
 /**
- * Builds the Express app. `requireAuth`, `welcomeEmail` and `mandiRoutesOptions` are
- * injectable so tests can supply a fake token verifier / email provider / ingestion
- * authoriser; production always uses Firebase Admin verification, the configured
- * email provider and denies HTTP ingestion until an admin role is approved.
+ * Builds the Express app. `requireAuth`, `welcomeEmail`, `mandiRoutesOptions` and
+ * `copilotRoutesOptions` are injectable so tests can supply fake dependencies.
  */
 export function createApp({
   requireAuth = defaultRequireAuth,
   welcomeEmail = createDefaultWelcomeEmailService(),
   mandiRoutesOptions = {},
+  copilotRoutesOptions = {},
 } = {}) {
   const app = express();
   app.locals.welcomeEmail = welcomeEmail;
@@ -71,6 +71,10 @@ export function createApp({
           syncStatus: '/api/mandi/sync/status',
           qualityReport: '/api/mandi/quality/report',
         },
+        copilot: {
+          chat: '/api/copilot/chat',
+          capabilities: '/api/copilot/capabilities',
+        },
       },
     });
   });
@@ -81,6 +85,7 @@ export function createApp({
   app.use('/api/farmers', createFarmerRoutes(requireAuth));
   app.use('/api/mandi', createMandiRoutes({ requireAuth, ...mandiRoutesOptions }));
   app.use('/api/forecast', createForecastRoutes());
+  app.use('/api/copilot', createCopilotRoutes({ requireAuth, ...copilotRoutesOptions }));
 
   // Error handling
   app.use(notFoundHandler);
