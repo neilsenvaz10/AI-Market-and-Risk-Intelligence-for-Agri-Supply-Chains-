@@ -1,4 +1,4 @@
-/**
+﻿/**
  * FASALYTICS - API Service
  * Centralized API client for communicating with the Node.js Express backend.
  */
@@ -53,9 +53,6 @@ async function sendRequest(baseUrl, endpoint, options) {
 /**
  * JSON request to the Express backend. Never treats a failed request as success:
  * non-2xx responses throw ApiError with the backend's code and message.
- *
- * @param {string} endpoint e.g. '/api/farmers/me'
- * @param {{ method?: string, body?: object, token?: string }} options
  */
 export async function apiRequest(endpoint, { method = 'GET', body, token } = {}) {
   const options = {
@@ -75,7 +72,6 @@ export async function apiRequest(endpoint, { method = 'GET', body, token } = {})
     if (!resolvedApiUrl.includes(':5000')) {
       throw new ApiError(0, 'NETWORK_ERROR', 'Cannot reach the FASALYTICS server. Check your internet connection.');
     }
-    // Same Windows :5000 -> :5001 fallback used by the health checks
     const fallbackUrl = resolvedApiUrl.replace(':5000', ':5001');
     try {
       res = await sendRequest(fallbackUrl, endpoint, options);
@@ -182,12 +178,6 @@ export async function getMandiQualityReport() {
 
 /**
  * Phase 4 — Price forecasting API client.
- *
- * `getForecast` resolves the commodity/mandi pair server-side (code, exact name or
- * id). A 200 response with `available: false` is a valid, non-error outcome: it
- * carries a `reason.code` (NO_MARKET_DATA | INSUFFICIENT_HISTORY | NO_FORECAST |
- * NO_FORECAST_FOR_FILTER) so the UI can show the right empty state instead of a
- * fabricated price. Genuine failures still throw ApiError.
  */
 export async function getForecast(commodity, mandi, options = {}) {
   const params = new URLSearchParams();
@@ -196,6 +186,29 @@ export async function getForecast(commodity, mandi, options = {}) {
   });
   const query = params.toString();
   const endpoint = `/api/forecast/${encodeURIComponent(commodity)}/${encodeURIComponent(mandi)}${query ? `?${query}` : ''}`;
+  return await fetchWithFallback(endpoint);
+}
+
+/**
+ * Phase 6 — Agricultural Risk Intelligence API client.
+ */
+export async function getMandiRisk(commodity, mandi, options = {}) {
+  const params = new URLSearchParams();
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') params.set(key, value);
+  });
+  const query = params.toString();
+  const endpoint = `/api/risk/mandi/${encodeURIComponent(commodity)}/${encodeURIComponent(mandi)}${query ? `?${query}` : ''}`;
+  return await fetchWithFallback(endpoint);
+}
+
+export async function getRiskSummary(options = {}) {
+  const params = new URLSearchParams();
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') params.set(key, value);
+  });
+  const query = params.toString();
+  const endpoint = `/api/risk/summary${query ? `?${query}` : ''}`;
   return await fetchWithFallback(endpoint);
 }
 
@@ -213,5 +226,7 @@ export default {
   triggerMandiSync,
   getMandiQualityReport,
   getForecast,
+  getMandiRisk,
+  getRiskSummary,
   getBaseUrl: () => resolvedApiUrl,
 };
