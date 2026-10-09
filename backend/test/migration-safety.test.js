@@ -22,7 +22,6 @@ const strip = (sql) => sql.replace(/--.*$/gm, '').replace(/'(?:[^']|'')*'/g, "''
 const statements = (sql) => strip(sql).split(';').map((s) => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
 
 for (const file of [...PHASE3, ...PHASE4, ...PHASE5, ...PHASE8]) {
->>>>>>> team/team/phase8-smart-farmer
   test(`${file}: no destructive statements`, async () => {
     const sql = strip(await fs.readFile(path.join(dir, file), 'utf8'));
     const forbiddenPatterns = [/\bDROP\s+TABLE\b/i, /\bTRUNCATE\b/i, /\bDELETE\s+FROM\b/i, /\bDROP\s+COLUMN\b/i,

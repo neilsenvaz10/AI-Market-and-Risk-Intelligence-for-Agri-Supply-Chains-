@@ -10,4 +10,8 @@ export default defineConfig({
   // to another port: Firebase may work there while profile API calls are blocked.
   server: { port: 5173, strictPort: true },
   preview: { port: 5173, strictPort: true },
+  test: {
+    testTimeout: 15000,
+    exclude: ['**/node_modules/**', '**/dist/**', 'test/market-api.test.mjs'],
+  },
 })

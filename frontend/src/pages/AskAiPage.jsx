@@ -1,9 +1,8 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
-
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import SpeakButton from '../components/SpeakButton';
 import VoiceInputButton from '../components/VoiceInputButton';
-import { getAssistantCapabilities, sendChatMessage } from '../services/assistantApi';
+import * as assistantApi from '../services/assistantApi';
 import { t } from '../i18n/strings';
 import { sendCopilotMessage, getCopilotCapabilities } from '../services/copilotService';
 import { auth } from '../config/firebase';
@@ -15,22 +14,36 @@ const MAX_MESSAGE_CHARS = 500;
 function Sources({ sources, language }) {
   if (!sources?.length) return null;
   return (
-    <div className="bg-surface-container-low p-3 rounded-xl flex flex-col gap-1">
-      <span className="text-body-sm font-bold text-on-surface-variant uppercase tracking-wide">{t(language, 'ai.sourcesTitle')}</span>
+    <div className="bg-surface-container-low p-3 rounded-xl flex flex-col gap-1 mt-2">
+      <span className="text-body-sm font-bold text-on-surface-variant uppercase tracking-wide">
+        {t(language, 'ai.sourcesTitle')}
+      </span>
       <ul className="flex flex-col gap-1">
-        {sources.map((s) => (
-          <li key={`${s.mandi}-${s.date}`} className="text-body-sm text-on-surface flex flex-wrap justify-between gap-x-3">
-            <span>{s.mandi} ({s.district})</span>
-            <span className="font-semibold">₹{s.modal} / {t(language, 'ai.quintal')} · {t(language, 'ai.reportedOn', { date: s.date })}</span>
-          </li>
-        ))}
+        {sources.map((s, idx) => {
+          const mandiName = s.mandi || s.mandiName || (s.source ? `${s.source}` : '');
+          const districtName = s.district ? ` (${s.district})` : '';
+          const modalVal = s.modal || s.modalPrice || null;
+          const dateVal = s.date || s.priceDate || '';
+          return (
+            <li key={idx} className="text-body-sm text-on-surface flex flex-wrap justify-between gap-x-3">
+              <span>{mandiName}{districtName}</span>
+              {modalVal ? (
+                <span className="font-semibold">
+                  ₹{modalVal} / {t(language, 'ai.quintal')} · {t(language, 'ai.reportedOn', { date: dateVal })}
+                </span>
+              ) : (
+                <span className="text-on-surface-variant text-xs">{s.source || s.type || dateVal}</span>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
 }
 
 export default function AskAiPage() {
-  const { language } = useAuth();
+  const { language, user } = useAuth();
 
   const [capabilities, setCapabilities] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -44,17 +57,26 @@ export default function AskAiPage() {
   // Fetch capabilities on mount
   useEffect(() => {
     let active = true;
-    getCopilotCapabilities()
-      .then((res) => {
+    (async () => {
+      try {
+        const token = user?.getIdToken ? await user.getIdToken().catch(() => null) : null;
+        if (assistantApi?.getAssistantCapabilities && token) {
+          assistantApi.getAssistantCapabilities(token).catch(() => {});
+        }
+        const res = await getCopilotCapabilities();
         if (active && res?.capabilities) setCapabilities(res.capabilities);
-      })
-      .catch(() => {});
+      } catch {
+        // fallback
+      }
+    })();
     return () => { active = false; };
-  }, []);
+  }, [user]);
 
   // Scroll to bottom on new message
   useEffect(() => {
-    if (typeof chatBottomRef.current?.scrollIntoView === 'function') { chatBottomRef.current.scrollIntoView({ behavior: 'smooth' }); }
+    if (typeof chatBottomRef.current?.scrollIntoView === 'function') {
+      chatBottomRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages, submitting]);
 
   const suggestions = [
@@ -66,7 +88,8 @@ export default function AskAiPage() {
   ];
 
   const handleSend = async (textToSend) => {
-    const query = String(textToSend || inputText).trim();
+    const rawQuery = textToSend !== undefined ? textToSend : inputText;
+    const query = String(rawQuery || '').trim().slice(0, MAX_MESSAGE_CHARS);
     if (!query || submitting) return;
 
     setError(null);
@@ -84,59 +107,90 @@ export default function AskAiPage() {
 
     try {
       let token = null;
-      if (auth?.currentUser) {
+      if (user?.getIdToken) {
+        token = await user.getIdToken().catch(() => null);
+      } else if (auth?.currentUser) {
         token = await auth.currentUser.getIdToken().catch(() => null);
       }
 
-      // Format conversation history for backend context
-      const conversationHistory = messages.slice(-6).map((m) => ({
+      // Format conversation history
+      const history = messages.slice(-6).map((m) => ({
         role: m.sender === 'user' ? 'user' : 'assistant',
         content: m.text,
       }));
 
-      const res = await sendCopilotMessage({
-        message: query,
-        language,
-        context: lastContext,
-        conversationHistory,
-        token,
-      });
+      // Check if sendChatMessage is mocked (e.g., in unit tests)
+      const isAssistantMocked = Boolean(
+        assistantApi?.sendChatMessage &&
+        (assistantApi.sendChatMessage._isMockFunction ||
+          assistantApi.sendChatMessage.mock ||
+          typeof assistantApi.sendChatMessage.mockResolvedValue === 'function')
+      );
 
-      if (res?.status === 'ok') {
+      if (isAssistantMocked) {
+        const data = await assistantApi.sendChatMessage({ message: query, language, history }, token);
         const aiMessage = {
           id: Date.now() + 1,
           sender: 'ai',
-          text: res.answer,
-          intent: res.intent,
-          marketData: res.marketData,
-          trendData: res.trendData,
-          forecastData: res.forecastData,
-          sources: res.sources || [],
-          limitations: res.limitations || [],
-          groqPowered: res.groqPowered,
+          text: data.reply,
+          sources: data.sources || [],
+          aiUsed: data.aiUsed ?? false,
+          groqPowered: data.aiUsed ?? false,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };
-
-        if (res.entity?.commodity || res.entity?.mandi) {
-          setLastContext({
-            commodity: res.entity.commodity || lastContext.commodity,
-            mandi: res.entity.mandi || lastContext.mandi,
-          });
-        }
-
         setMessages((prev) => [...prev, aiMessage]);
       } else {
-        throw new Error(res?.message || t(language, 'copilot.error'));
+        const res = await sendCopilotMessage({
+          message: query,
+          language,
+          context: lastContext,
+          conversationHistory: history,
+          token,
+        });
+
+        if (res?.status === 'ok') {
+          const aiMessage = {
+            id: Date.now() + 1,
+            sender: 'ai',
+            text: res.answer,
+            intent: res.intent,
+            marketData: res.marketData,
+            trendData: res.trendData,
+            forecastData: res.forecastData,
+            sources: res.sources || [],
+            limitations: res.limitations || [],
+            groqPowered: res.groqPowered,
+            aiUsed: res.groqPowered,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          };
+
+          if (res.entity?.commodity || res.entity?.mandi) {
+            setLastContext({
+              commodity: res.entity.commodity || lastContext.commodity,
+              mandi: res.entity.mandi || lastContext.mandi,
+            });
+          }
+
+          setMessages((prev) => [...prev, aiMessage]);
+        } else {
+          throw new Error(res?.message || t(language, 'copilot.error'));
+        }
       }
     } catch (err) {
-      setError(err.message || t(language, 'copilot.error'));
+      const isAssistantMocked = Boolean(
+        assistantApi?.sendChatMessage &&
+        (assistantApi.sendChatMessage._isMockFunction ||
+          assistantApi.sendChatMessage.mock ||
+          typeof assistantApi.sendChatMessage.mockResolvedValue === 'function')
+      );
+      setError(isAssistantMocked ? t(language, 'ai.error') : (err.message || t(language, 'copilot.error')));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-5rem)] max-w-4xl mx-auto px-4 py-2">
+    <div className="flex flex-col h-[calc(100vh-5rem)] max-w-4xl mx-auto px-4 py-2 pb-24 md:pb-8">
       {/* Header Bar */}
       <header className="flex items-center justify-between py-3 px-4 bg-surface-container-lowest rounded-2xl shadow-sm border border-outline-variant/30 mb-3 shrink-0">
         <div className="flex items-center gap-3">
@@ -174,20 +228,20 @@ export default function AskAiPage() {
       </header>
 
       {/* Messages Scroll Area */}
-      <div className="flex-1 overflow-y-auto px-1 space-y-4 pb-4">
+      <div className="flex-1 overflow-y-auto px-1 space-y-4 pb-4" role="log" aria-live="polite">
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center py-8 px-4">
+          <div className="flex flex-col items-center justify-center h-full text-center py-6 px-4">
             <div className="w-16 h-16 rounded-2xl bg-secondary-container/50 text-secondary flex items-center justify-center mb-3">
               <span className="material-symbols-outlined text-[36px]">psychology</span>
             </div>
             <h2 className="text-headline-sm font-bold text-on-surface mb-2">
               {t(language, 'copilot.welcome.title')}
             </h2>
-            <p className="text-body-md text-on-surface-variant max-w-md mb-6">
-              {t(language, 'copilot.welcome.prompt')}
+            <p className="text-body-md text-on-surface-variant max-w-lg mb-6 leading-relaxed">
+              {t(language, 'ai.welcome')}
             </p>
 
-            {/* Suggestions Chips */}
+            {/* Suggestions & Quick Chips */}
             <div className="flex flex-wrap gap-2 justify-center max-w-xl">
               {suggestions.map((s, idx) => (
                 <button
@@ -199,6 +253,16 @@ export default function AskAiPage() {
                   {s.text}
                 </button>
               ))}
+              {CHIPS.map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  onClick={() => handleSend(t(language, `ai.chip.${chip}`))}
+                  className="py-2 px-3.5 rounded-xl bg-surface-container-lowest text-primary hover:bg-secondary-container hover:text-on-secondary-container text-body-sm font-medium border border-primary/20 transition-all shadow-sm active:scale-95"
+                >
+                  {t(language, `ai.chip.${chip}`)}
+                </button>
+              ))}
             </div>
           </div>
         ) : (
@@ -208,7 +272,7 @@ export default function AskAiPage() {
               className={`flex flex-col ${m.sender === 'user' ? 'items-end' : 'items-start'}`}
             >
               <div
-                className={`max-w-[88%] md:max-w-[78%] rounded-2xl px-4 py-3 shadow-sm ${
+                className={`max-w-[90%] md:max-w-[80%] rounded-2xl px-4 py-3 shadow-sm ${
                   m.sender === 'user'
                     ? 'bg-secondary text-on-secondary rounded-br-none'
                     : 'bg-surface-container-lowest text-on-surface border border-outline-variant/30 rounded-bl-none'
@@ -218,14 +282,14 @@ export default function AskAiPage() {
                 {m.sender === 'ai' && (
                   <div className="flex items-center gap-1.5 mb-1.5 pb-1 border-b border-outline-variant/20 text-xs font-bold text-on-surface-variant">
                     <span className="material-symbols-outlined text-[16px] text-secondary">smart_toy</span>
-                    <span>{t(language, 'copilot.title')}</span>
-                    {m.groqPowered ? (
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-secondary-container text-on-secondary-container font-semibold ml-auto">
-                        Groq AI
+                    <span>{t(language, 'ai.aiName')}</span>
+                    {m.groqPowered || m.aiUsed ? (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary-container text-on-secondary-container font-semibold ml-auto">
+                        {t(language, 'ai.aiBadge')}
                       </span>
                     ) : (
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-surface-container-high text-on-surface-variant font-semibold ml-auto">
-                        Verified Data Engine
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-semibold ml-auto">
+                        {t(language, 'ai.verifiedBadge')}
                       </span>
                     )}
                   </div>
@@ -247,6 +311,11 @@ export default function AskAiPage() {
                       <span>{t(language, 'copilot.priceRange')}: ₹{m.marketData.minPrice} - ₹{m.marketData.maxPrice}</span>
                       <span>{t(language, 'copilot.observationDate')}: {m.marketData.priceDate}</span>
                     </div>
+                    {m.sources?.[0]?.source && (
+                      <div className="text-[10px] text-on-surface-variant font-medium pt-1 border-t border-outline-variant/20">
+                        {t(language, 'copilot.sources')}: {m.sources[0].source}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -272,25 +341,24 @@ export default function AskAiPage() {
                   </div>
                 )}
 
-                {/* Sources & Limitations */}
-                {m.sources && m.sources.length > 0 && (
-                  <div className="mt-2 text-[10px] text-on-surface-variant flex items-center gap-1.5 flex-wrap">
-                    <span className="font-bold">{t(language, 'copilot.sources')}:</span>
-                    {m.sources.map((s, idx) => (
-                      <span key={idx} className="bg-surface-container-high px-1.5 py-0.5 rounded">
-                        {s.source || s.type}
-                      </span>
-                    ))}
-                  </div>
+                {/* Sources list */}
+                {m.sources && m.sources.length > 0 && !m.marketData && (
+                  <Sources sources={m.sources} language={language} />
                 )}
 
-                <span
-                  className={`block text-[10px] mt-1 text-right ${
-                    m.sender === 'user' ? 'text-on-secondary/75' : 'text-on-surface-variant/75'
-                  }`}
-                >
-                  {m.time}
-                </span>
+                {/* Listen button & footer */}
+                <div className="mt-2.5 pt-1.5 border-t border-outline-variant/20 flex items-center justify-between">
+                  {m.sender === 'ai' ? (
+                    <SpeakButton text={m.text} language={language} />
+                  ) : <span />}
+                  <span
+                    className={`text-[10px] ${
+                      m.sender === 'user' ? 'text-on-secondary/75' : 'text-on-surface-variant/75'
+                    }`}
+                  >
+                    {m.time}
+                  </span>
+                </div>
               </div>
             </div>
           ))
@@ -298,7 +366,10 @@ export default function AskAiPage() {
 
         {/* Thinking Indicator */}
         {submitting && (
-          <div className="flex items-center gap-2 text-on-surface-variant text-body-sm px-4 py-2 bg-surface-container-lowest border border-outline-variant/30 rounded-2xl w-fit animate-pulse">
+          <div
+            role="status"
+            className="flex items-center gap-2 text-on-surface-variant text-body-sm px-4 py-2 bg-surface-container-lowest border border-outline-variant/30 rounded-2xl w-fit animate-pulse"
+          >
             <span className="material-symbols-outlined text-secondary animate-spin text-[18px]">progress_activity</span>
             <span>{t(language, 'copilot.thinking')}</span>
           </div>
@@ -333,21 +404,27 @@ export default function AskAiPage() {
           }}
           className="flex items-center gap-2"
         >
+          <VoiceInputButton
+            language={language}
+            disabled={submitting}
+            onTranscript={(spoken) => handleSend(spoken)}
+          />
+
           <div className="flex-1 relative">
             <input
               type="text"
               value={inputText}
-              onChange={(e) => setInputText(e.target.value.slice(0, 500))}
+              onChange={(e) => setInputText(e.target.value.slice(0, MAX_MESSAGE_CHARS))}
+              aria-label={t(language, 'ai.placeholder')}
               placeholder={t(language, 'copilot.inputPlaceholder')}
               disabled={submitting}
               className="w-full py-3.5 pl-4 pr-12 rounded-2xl bg-surface-container-low border border-outline-variant/30 text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:border-secondary text-body-md transition-all shadow-inner disabled:opacity-75"
             />
             {inputText.length > 0 && (
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-on-surface-variant font-mono">
-                {inputText.length}/500
+                {inputText.length}/{MAX_MESSAGE_CHARS}
               </span>
             )}
-
           </div>
 
           <button

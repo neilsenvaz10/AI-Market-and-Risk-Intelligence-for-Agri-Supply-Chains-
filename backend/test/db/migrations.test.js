@@ -61,16 +61,17 @@ async function assertPhase3Schema(client) {
 
 const PHASE4_MIGRATION = '007_phase4_forecasting.sql';
 const PHASE5_MIGRATION = '008_phase5_canonical_mandi.sql';
+const PHASE8_MIGRATION = '009_phase8_smart_farmer.sql';
 
 test('migration files have unique numbers and Phase 2 runs before Phase 3 before Phase 4', async () => {
   const files = await listMigrationFiles();
-  assert.deepEqual(files, ['002_phase2_farmers.sql', '003_phase2_email_identity.sql', '004_mandi_data_pipeline.sql', '005_mandi_pipeline_integrity.sql', '006_agmarknet_commodity_reports.sql', PHASE4_MIGRATION, PHASE5_MIGRATION]);
+  assert.deepEqual(files, ['002_phase2_farmers.sql', '003_phase2_email_identity.sql', '004_mandi_data_pipeline.sql', '005_mandi_pipeline_integrity.sql', '006_agmarknet_commodity_reports.sql', PHASE4_MIGRATION, PHASE5_MIGRATION, PHASE8_MIGRATION]);
 });
 
 test('fresh database: full chain applies from zero, and a re-run applies nothing', async () => {
   await withScratch('fresh', async (client) => {
     const first = await runMigrations(client, quiet);
-    assert.equal(first.applied.length, 7);
+    assert.equal(first.applied.length, 8);
     await assertPhase3Schema(client);
     const emailColumn = await client.query(`SELECT 1 FROM information_schema.columns WHERE table_name = 'farmers' AND column_name = 'welcome_email_status'`);
     assert.equal(emailColumn.rowCount, 1, 'Phase 2 email migration is no longer blocked');
@@ -102,7 +103,7 @@ test('Phase 2 database upgrades to Phase 3 without touching farmer data', async 
     const before = (await client.query(`SELECT md5(string_agg(f::text, ',' ORDER BY id)) AS h FROM farmers f`)).rows[0].h;
 
     const result = await runMigrations(client, quiet);
-    assert.deepEqual(result.applied, ['004_mandi_data_pipeline.sql', '005_mandi_pipeline_integrity.sql', '006_agmarknet_commodity_reports.sql', PHASE4_MIGRATION, PHASE5_MIGRATION]);
+    assert.deepEqual(result.applied, ['004_mandi_data_pipeline.sql', '005_mandi_pipeline_integrity.sql', '006_agmarknet_commodity_reports.sql', PHASE4_MIGRATION, PHASE5_MIGRATION, PHASE8_MIGRATION]);
     await assertPhase3Schema(client);
     const afterHash = (await client.query(`SELECT md5(string_agg(f::text, ',' ORDER BY id)) AS h FROM farmers f`)).rows[0].h;
     assert.equal(afterHash, before, 'farmer rows are byte-for-byte unchanged');
@@ -122,7 +123,7 @@ test('legacy Phase 3 database (schema.sql / old 003 tables with CASCADE and defa
        VALUES (1, 1, '2026-09-01', 100, 200, 150, 'MOCK_PROVIDER', TRUE)`);
 
     const result = await runMigrations(client, quiet);
-    assert.deepEqual(result.applied, ['002_phase2_farmers.sql', '003_phase2_email_identity.sql', '004_mandi_data_pipeline.sql', '005_mandi_pipeline_integrity.sql', '006_agmarknet_commodity_reports.sql', PHASE4_MIGRATION, PHASE5_MIGRATION]);
+    assert.deepEqual(result.applied, ['002_phase2_farmers.sql', '003_phase2_email_identity.sql', '004_mandi_data_pipeline.sql', '005_mandi_pipeline_integrity.sql', '006_agmarknet_commodity_reports.sql', PHASE4_MIGRATION, PHASE5_MIGRATION, PHASE8_MIGRATION]);
     await assertPhase3Schema(client);
     const row = (await client.query(`SELECT variety, grade, price_unit, arrivals_quantity, quality_flags FROM mandi_prices`)).rows[0];
     assert.deepEqual(row, { variety: 'Standard', grade: 'FAQ', price_unit: 'INR/quintal', arrivals_quantity: '0.000', quality_flags: ['LEGACY_ARRIVAL_UNIT_UNKNOWN'] },

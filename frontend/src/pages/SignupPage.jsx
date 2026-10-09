@@ -78,7 +78,7 @@ export default function SignupPage() {
 
   return (
     <div className="flex flex-col w-full py-space-md gap-space-lg">
-      <AuthBranding icon="person_add" title={t(language, 'signupTitle')} subtitle={t(language, 'signupSubtitle')} />
+      <AuthBranding icon="eco" title={t(language, 'signupTitle')} subtitle={t(language, 'signupSubtitle')} />
 
       <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm border border-outline-variant/30 flex flex-col gap-space-md">
         {isUsingAuthEmulator && <EmulatorBadge />}
