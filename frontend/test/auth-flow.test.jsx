@@ -168,10 +168,18 @@ describe('registration and dashboard regression', () => {
     expect(savedProfile.village).toBe('Lasalgaon');
   });
 
+  it('redirects unauthenticated root visitors to the landing page', async () => {
+    identity.auth.currentUser = null;
+    window.history.replaceState({}, '', '/');
+    render(<App />);
+    await screen.findByRole('heading', { name: /Sell Smarter\. Earn Better\./i });
+    expect(window.location.pathname).toBe('/landing');
+  });
+
   it('logs in a returning farmer and restores the dashboard after remount', async () => {
     savedProfile = profile;
     identity.auth.currentUser = null;
-    window.history.replaceState({}, '', '/');
+    window.history.replaceState({}, '', '/login');
     const view = render(<App />);
     await screen.findByRole('heading', { name: 'Log in to your account' });
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: user.email } });
@@ -186,7 +194,7 @@ describe('registration and dashboard regression', () => {
 
   it('takes a new farmer from login through profile completion to the dashboard', async () => {
     identity.auth.currentUser = null;
-    window.history.replaceState({}, '', '/');
+    window.history.replaceState({}, '', '/login');
     render(<App />);
     await screen.findByRole('heading', { name: 'Log in to your account' });
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: user.email } });

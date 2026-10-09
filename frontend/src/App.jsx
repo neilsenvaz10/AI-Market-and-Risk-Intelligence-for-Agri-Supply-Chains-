@@ -18,6 +18,7 @@ import VerifyEmailPage from './pages/VerifyEmailPage';
 import AddEmailPage from './pages/AddEmailPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import LandingPage from './pages/LandingPage';
 import { SETUP_ROUTES } from './utils/setupSteps';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
@@ -67,6 +68,9 @@ function App() {
               <Route path="profile" element={<ProfilePage />} />
             </Route>
           </Route>
+
+          {/* ── PUBLIC LANDING PAGE (no header / bottom nav) ── */}
+          <Route path="landing" element={<LandingPage />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
