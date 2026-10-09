@@ -1,250 +1,342 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { t } from '../i18n/strings';
+import { sendCopilotMessage, getCopilotCapabilities } from '../services/copilotService';
+import { auth } from '../config/firebase';
 
 export default function AskAiPage() {
   const { language } = useAuth();
 
-  // Demo messages — built from the active language on mount.
-  // They reset when language changes since language is a dep of initializer.
-  const makeInitialMessages = (lang) => [
-    {
-      id: 1,
-      sender: 'user',
-      text: t(lang, 'ai.demo.userMsg1'),
-      time: '10:42 AM',
-      status: t(lang, 'ai.demo.read'),
-    },
-    {
-      id: 2,
-      sender: 'ai',
-      text: t(lang, 'ai.demo.aiMsg1'),
-      time: '10:43 AM',
-      hasCard: true,
-    },
-    {
-      id: 3,
-      sender: 'user',
-      text: t(lang, 'ai.demo.userMsg2'),
-      time: '10:45 AM',
-      status: t(lang, 'ai.demo.read'),
-    },
-    {
-      id: 4,
-      sender: 'ai',
-      text: t(lang, 'ai.demo.aiMsg2'),
-      time: '10:45 AM',
-    },
+  const [capabilities, setCapabilities] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [inputText, setInputText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const [lastContext, setLastContext] = useState({});
+
+  const chatBottomRef = useRef(null);
+
+  // Fetch capabilities on mount
+  useEffect(() => {
+    let active = true;
+    getCopilotCapabilities()
+      .then((res) => {
+        if (active && res?.capabilities) setCapabilities(res.capabilities);
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  // Scroll to bottom on new message
+  useEffect(() => {
+    if (typeof chatBottomRef.current?.scrollIntoView === 'function') { chatBottomRef.current.scrollIntoView({ behavior: 'smooth' }); }
+  }, [messages, submitting]);
+
+  const suggestions = [
+    { key: 'copilot.suggest1', text: t(language, 'copilot.suggest1') },
+    { key: 'copilot.suggest2', text: t(language, 'copilot.suggest2') },
+    { key: 'copilot.suggest3', text: t(language, 'copilot.suggest3') },
+    { key: 'copilot.suggest4', text: t(language, 'copilot.suggest4') },
+    { key: 'copilot.suggest5', text: t(language, 'copilot.suggest5') },
   ];
 
-  const [messages, setMessages] = useState(() => makeInitialMessages(language));
-  const [inputText, setInputText] = useState('');
+  const handleSend = async (textToSend) => {
+    const query = String(textToSend || inputText).trim();
+    if (!query || submitting) return;
 
-  useEffect(() => {
-    setMessages(makeInitialMessages(language));
-  }, [language]);
-
-  const handleSend = (e) => {
-    e.preventDefault();
-    if (!inputText.trim()) return;
-
-    const newMsg = {
-      id: Date.now(),
-      sender: 'user',
-      text: inputText,
-      time: t(language, 'ai.demo.justNow'),
-      status: t(language, 'ai.demo.sent'),
-    };
-    setMessages((prev) => [...prev, newMsg]);
+    setError(null);
     setInputText('');
 
-    // Simulated AI acknowledgment response
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        {
+    const userMessage = {
+      id: Date.now(),
+      sender: 'user',
+      text: query,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setSubmitting(true);
+
+    try {
+      let token = null;
+      if (auth?.currentUser) {
+        token = await auth.currentUser.getIdToken().catch(() => null);
+      }
+
+      // Format conversation history for backend context
+      const conversationHistory = messages.slice(-6).map((m) => ({
+        role: m.sender === 'user' ? 'user' : 'assistant',
+        content: m.text,
+      }));
+
+      const res = await sendCopilotMessage({
+        message: query,
+        language,
+        context: lastContext,
+        conversationHistory,
+        token,
+      });
+
+      if (res?.status === 'ok') {
+        const aiMessage = {
           id: Date.now() + 1,
           sender: 'ai',
-          text: t(language, 'ai.demo.aiResponse'),
-          time: t(language, 'ai.demo.justNow'),
-        },
-      ]);
-    }, 1000);
-  };
+          text: res.answer,
+          intent: res.intent,
+          marketData: res.marketData,
+          trendData: res.trendData,
+          forecastData: res.forecastData,
+          sources: res.sources || [],
+          limitations: res.limitations || [],
+          groqPowered: res.groqPowered,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
 
-  const handleChipClick = (query) => {
-    setInputText(query);
+        if (res.entity?.commodity || res.entity?.mandi) {
+          setLastContext({
+            commodity: res.entity.commodity || lastContext.commodity,
+            mandi: res.entity.mandi || lastContext.mandi,
+          });
+        }
+
+        setMessages((prev) => [...prev, aiMessage]);
+      } else {
+        throw new Error(res?.message || t(language, 'copilot.error'));
+      }
+    } catch (err) {
+      setError(err.message || t(language, 'copilot.error'));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
-    <div className="flex flex-col w-full pb-32">
-      {/* Chat Header status info */}
-      <div className="flex items-center justify-between py-2 px-1 mb-2">
+    <div className="flex flex-col h-[calc(100vh-5rem)] max-w-4xl mx-auto px-4 py-2">
+      {/* Header Bar */}
+      <header className="flex items-center justify-between py-3 px-4 bg-surface-container-lowest rounded-2xl shadow-sm border border-outline-variant/30 mb-3 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-secondary-container text-on-secondary-container flex items-center justify-center font-bold shadow-sm">
+            <span className="material-symbols-outlined text-[24px]">smart_toy</span>
+          </div>
+          <div>
+            <h1 className="text-title-md font-bold text-on-surface leading-tight">
+              {t(language, 'copilot.title')}
+            </h1>
+            <p className="text-body-sm text-on-surface-variant line-clamp-1">
+              {t(language, 'copilot.subtitle')}
+            </p>
+          </div>
+        </div>
+
+        {/* Engine status indicator */}
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-secondary animate-pulse"></div>
-          <span className="text-body-sm font-semibold text-on-surface-variant uppercase tracking-wider">
-            Fasalytics AI • {t(language, 'ai.statusLabel')}
+          {capabilities?.groqConfigured ? (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-secondary-container text-on-secondary-container border border-secondary/30">
+              <span className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
+              {t(language, 'copilot.badge.groq')}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-surface-container-high text-on-surface-variant">
+              <span className="w-2 h-2 rounded-full bg-primary/70" />
+              {t(language, 'copilot.badge.deterministic')}
+            </span>
+          )}
+          <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-surface-container-low text-on-surface-variant border border-outline-variant/30">
+            <span className="material-symbols-outlined text-[14px] text-secondary">verified</span>
+            {t(language, 'copilot.badge.verified')}
           </span>
         </div>
-        <span className="text-body-sm text-on-surface-variant font-medium">
-          {t(language, 'ai.session')} #8921
-        </span>
-      </div>
+      </header>
 
-      {/* Chat Conversation Area */}
-      <div className="flex flex-col gap-4 w-full">
-        {/* Timestamp Divider */}
-        <div className="flex justify-center my-1">
-          <span className="px-3 py-1 bg-surface-container-high rounded-full text-body-sm text-on-surface-variant font-medium">
-            {t(language, 'ai.demo.timeLabel')}
-          </span>
-        </div>
+      {/* Messages Scroll Area */}
+      <div className="flex-1 overflow-y-auto px-1 space-y-4 pb-4">
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center py-8 px-4">
+            <div className="w-16 h-16 rounded-2xl bg-secondary-container/50 text-secondary flex items-center justify-center mb-3">
+              <span className="material-symbols-outlined text-[36px]">psychology</span>
+            </div>
+            <h2 className="text-headline-sm font-bold text-on-surface mb-2">
+              {t(language, 'copilot.welcome.title')}
+            </h2>
+            <p className="text-body-md text-on-surface-variant max-w-md mb-6">
+              {t(language, 'copilot.welcome.prompt')}
+            </p>
 
-        {messages.map((msg) => (
-          <React.Fragment key={msg.id}>
-            {msg.sender === 'user' ? (
-              /* Farmer User Message */
-              <div className="flex flex-col items-end gap-1 w-full pl-8">
-                <div className="bg-primary text-on-primary p-4 rounded-xl rounded-br-xs shadow-sm max-w-[90%]">
-                  <p className="text-body-lg font-label-lg">{msg.text}</p>
-                </div>
-                <span className="text-body-sm text-on-surface-variant pr-1">
-                  {msg.time} • {msg.status}
+            {/* Suggestions Chips */}
+            <div className="flex flex-wrap gap-2 justify-center max-w-xl">
+              {suggestions.map((s, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleSend(s.text)}
+                  className="py-2 px-3.5 rounded-xl bg-surface-container-low hover:bg-secondary-container hover:text-on-secondary-container text-on-surface text-body-sm font-medium border border-outline-variant/30 transition-all text-left shadow-sm active:scale-95"
+                >
+                  {s.text}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          messages.map((m) => (
+            <div
+              key={m.id}
+              className={`flex flex-col ${m.sender === 'user' ? 'items-end' : 'items-start'}`}
+            >
+              <div
+                className={`max-w-[88%] md:max-w-[78%] rounded-2xl px-4 py-3 shadow-sm ${
+                  m.sender === 'user'
+                    ? 'bg-secondary text-on-secondary rounded-br-none'
+                    : 'bg-surface-container-lowest text-on-surface border border-outline-variant/30 rounded-bl-none'
+                }`}
+              >
+                {/* AI Header info */}
+                {m.sender === 'ai' && (
+                  <div className="flex items-center gap-1.5 mb-1.5 pb-1 border-b border-outline-variant/20 text-xs font-bold text-on-surface-variant">
+                    <span className="material-symbols-outlined text-[16px] text-secondary">smart_toy</span>
+                    <span>{t(language, 'copilot.title')}</span>
+                    {m.groqPowered ? (
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-secondary-container text-on-secondary-container font-semibold ml-auto">
+                        Groq AI
+                      </span>
+                    ) : (
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-surface-container-high text-on-surface-variant font-semibold ml-auto">
+                        Verified Data Engine
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Message Text */}
+                <p className="text-body-md whitespace-pre-line leading-relaxed">{m.text}</p>
+
+                {/* Structured Market Card */}
+                {m.marketData && (
+                  <div className="mt-3 p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 text-xs flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between font-bold text-on-surface">
+                      <span>{m.marketData.commodityName} @ {m.marketData.mandiName}</span>
+                      <span className="text-secondary font-black text-sm">
+                        ₹{m.marketData.modalPrice}/quintal
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-on-surface-variant">
+                      <span>{t(language, 'copilot.priceRange')}: ₹{m.marketData.minPrice} - ₹{m.marketData.maxPrice}</span>
+                      <span>{t(language, 'copilot.observationDate')}: {m.marketData.priceDate}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Structured Forecast Card */}
+                {m.forecastData && m.forecastData.forecasts?.[0] && (
+                  <div className="mt-3 p-3 rounded-xl bg-secondary-container/40 border border-secondary/30 text-xs flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between font-bold text-on-surface">
+                      <span className="flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[16px] text-secondary">trending_up</span>
+                        {t(language, 'copilot.badge.forecast')}
+                      </span>
+                      <span className="text-secondary font-black text-sm">
+                        ₹{m.forecastData.forecasts[0].predictedPrice}/quintal
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-on-surface-variant">
+                      <span>{t(language, 'copilot.predictionInterval')}: ₹{m.forecastData.forecasts[0].lowerBound} - ₹{m.forecastData.forecasts[0].upperBound}</span>
+                      <span className="font-bold text-secondary">{m.forecastData.forecasts[0].confidence}% {t(language, 'copilot.confidence')}</span>
+                    </div>
+                    <div className="text-[10px] text-on-surface-variant/80 border-t border-outline-variant/20 pt-1">
+                      {t(language, 'copilot.forecastDate')}: {m.forecastData.forecasts[0].forecastDate}
+                    </div>
+                  </div>
+                )}
+
+                {/* Sources & Limitations */}
+                {m.sources && m.sources.length > 0 && (
+                  <div className="mt-2 text-[10px] text-on-surface-variant flex items-center gap-1.5 flex-wrap">
+                    <span className="font-bold">{t(language, 'copilot.sources')}:</span>
+                    {m.sources.map((s, idx) => (
+                      <span key={idx} className="bg-surface-container-high px-1.5 py-0.5 rounded">
+                        {s.source || s.type}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <span
+                  className={`block text-[10px] mt-1 text-right ${
+                    m.sender === 'user' ? 'text-on-secondary/75' : 'text-on-surface-variant/75'
+                  }`}
+                >
+                  {m.time}
                 </span>
               </div>
-            ) : (
-              /* AI Response */
-              <div className="flex flex-col items-start gap-1 w-full pr-8">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-6 h-6 rounded-full bg-secondary-container flex items-center justify-center">
-                    <span
-                      className="material-symbols-outlined text-on-secondary-container text-[14px]"
-                      style={{ fontVariationSettings: "'FILL' 1" }}
-                    >
-                      smart_toy
-                    </span>
-                  </div>
-                  <span className="text-body-sm font-bold text-secondary">{t(language, 'ai.aiName')}</span>
-                </div>
-                <div className="bg-surface-container-lowest p-4 rounded-xl shadow-[0_1px_8px_rgba(0,38,13,0.06)] w-full flex flex-col gap-3">
-                  <p className="text-body-md text-on-surface">{msg.text}</p>
+            </div>
+          ))
+        )}
 
-                  {/* Rich Embedded Result Card */}
-                  {msg.hasCard && (
-                    <div className="bg-surface-container-low p-4 rounded-xl flex flex-col gap-3">
-                      <div className="flex items-center justify-between">
-                        <span className="font-headline-md text-headline-md text-primary">
-                          Pune APMC • {t(language, 'ai.card.recommended')}
-                        </span>
-                        <span className="px-2.5 py-1 bg-secondary-container text-on-secondary-container text-body-sm font-bold rounded-full">
-                          {t(language, 'ai.card.confidence')}: 78%
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-baseline py-2 bg-surface-container-lowest px-3 rounded-lg">
-                        <div>
-                          <span className="text-body-sm text-on-surface-variant block">
-                            {t(language, 'ai.card.expectedReturn')}
-                          </span>
-                          <span className="font-headline-lg text-headline-lg text-secondary">
-                            ₹19,800
-                          </span>
-                        </div>
-                        <span className="text-body-sm font-bold text-secondary bg-secondary/10 px-2 py-0.5 rounded">
-                          +14% vs avg
-                        </span>
-                      </div>
-                      <div className="text-body-md text-on-surface flex flex-col gap-1">
-                        <div className="flex justify-between py-1">
-                          <span className="text-on-surface-variant">Pune Mandi (60%)</span>
-                          <span className="font-semibold">600 kg @ ₹2,050/qtl</span>
-                        </div>
-                        <div className="flex justify-between py-1">
-                          <span className="text-on-surface-variant">Ahmednagar (40%)</span>
-                          <span className="font-semibold">400 kg @ ₹1,920/qtl</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between pt-1">
-                        <span className="text-xs text-amber-800 bg-amber-100 px-2 py-1 rounded font-medium">
-                          {t(language, 'ai.card.mediumRisk')}
-                        </span>
-                        <Link
-                          to="/recommendation"
-                          className="bg-primary text-on-primary px-3 py-1.5 rounded-lg text-body-sm font-medium flex items-center gap-1 active:scale-95 transition-all"
-                        >
-                          <span>{t(language, 'ai.card.viewBreakdown')}</span>
-                          <span className="material-symbols-outlined text-[16px]">
-                            arrow_forward
-                          </span>
-                        </Link>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <span className="text-body-sm text-on-surface-variant pl-1">{msg.time}</span>
-              </div>
-            )}
-          </React.Fragment>
-        ))}
-      </div>
+        {/* Thinking Indicator */}
+        {submitting && (
+          <div className="flex items-center gap-2 text-on-surface-variant text-body-sm px-4 py-2 bg-surface-container-lowest border border-outline-variant/30 rounded-2xl w-fit animate-pulse">
+            <span className="material-symbols-outlined text-secondary animate-spin text-[18px]">progress_activity</span>
+            <span>{t(language, 'copilot.thinking')}</span>
+          </div>
+        )}
 
-      {/* Suggestion Chips — localised per active language */}
-      <div className="flex gap-2 overflow-x-auto py-3 mt-4">
-        <button
-          onClick={() => handleChipClick(t(language, 'ai.chip.bestPrice'))}
-          className="whitespace-nowrap px-3.5 py-2 bg-surface-container-lowest text-primary rounded-full text-body-sm font-medium shadow-sm hover:bg-secondary-container transition-all"
-        >
-          {t(language, 'ai.chip.bestPrice')}
-        </button>
-        <button
-          onClick={() => handleChipClick(t(language, 'ai.chip.coldStorage'))}
-          className="whitespace-nowrap px-3.5 py-2 bg-surface-container-lowest text-primary rounded-full text-body-sm font-medium shadow-sm hover:bg-secondary-container transition-all"
-        >
-          {t(language, 'ai.chip.coldStorage')}
-        </button>
-        <button
-          onClick={() => handleChipClick(t(language, 'ai.chip.weather'))}
-          className="whitespace-nowrap px-3.5 py-2 bg-surface-container-lowest text-primary rounded-full text-body-sm font-medium shadow-sm hover:bg-secondary-container transition-all"
-        >
-          {t(language, 'ai.chip.weather')}
-        </button>
-      </div>
-
-      {/* Bottom Floating Input Bar */}
-      <div className="fixed bottom-20 inset-x-0 z-40 px-gutter pb-2 bg-surface/95 backdrop-blur-xl">
-        <form onSubmit={handleSend} className="flex flex-col gap-2 max-w-screen-xl mx-auto">
-          <div className="flex items-center gap-2 bg-surface-container-lowest p-2 rounded-xl shadow-[0_-1px_8px_rgba(0,38,13,0.06)]">
+        {/* Error Alert */}
+        {error && (
+          <div className="p-3 bg-error-container text-on-error-container rounded-xl text-body-sm flex items-center justify-between" role="alert">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[18px]">error</span>
+              <span>{error}</span>
+            </div>
             <button
               type="button"
-              className="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container shrink-0 active:scale-95 transition-all"
+              onClick={() => setError(null)}
+              className="text-xs font-bold underline ml-2"
             >
-              <span
-                className="material-symbols-outlined text-[20px]"
-                style={{ fontVariationSettings: "'FILL' 1" }}
-              >
-                mic
-              </span>
+              Dismiss
             </button>
+          </div>
+        )}
+
+        <div ref={chatBottomRef} />
+      </div>
+
+      {/* Input Area */}
+      <div className="pt-2 shrink-0 border-t border-outline-variant/20">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSend();
+          }}
+          className="flex items-center gap-2"
+        >
+          <div className="flex-1 relative">
             <input
               type="text"
               value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              className="flex-grow bg-transparent text-body-md text-on-surface placeholder:text-on-surface-variant outline-none px-2"
-              placeholder={t(language, 'ai.placeholder')}
+              onChange={(e) => setInputText(e.target.value.slice(0, 500))}
+              placeholder={t(language, 'copilot.inputPlaceholder')}
+              disabled={submitting}
+              className="w-full py-3.5 pl-4 pr-12 rounded-2xl bg-surface-container-low border border-outline-variant/30 text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:border-secondary text-body-md transition-all shadow-inner disabled:opacity-75"
             />
-            <button
-              type="submit"
-              className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary shrink-0 active:scale-95 transition-all"
-            >
-              <span className="material-symbols-outlined text-[20px]">send</span>
-            </button>
+            {inputText.length > 0 && (
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-on-surface-variant font-mono">
+                {inputText.length}/500
+              </span>
+            )}
           </div>
-          <div className="text-center">
-            <span className="text-[11px] text-on-surface-variant font-medium">
-              {t(language, 'ai.footer')}
-            </span>
-          </div>
+
+          <button
+            type="submit"
+            disabled={!inputText.trim() || submitting}
+            className="w-12 h-12 rounded-2xl bg-secondary text-on-secondary flex items-center justify-center shadow-md active:scale-95 disabled:opacity-50 disabled:scale-100 transition-all shrink-0"
+            aria-label={t(language, 'copilot.send')}
+          >
+            <span className="material-symbols-outlined text-[22px]">send</span>
+          </button>
         </form>
+
+        <p className="text-[10px] text-center text-on-surface-variant/80 mt-1.5 line-clamp-1">
+          {t(language, 'copilot.disclaimer')}
+        </p>
       </div>
     </div>
   );
