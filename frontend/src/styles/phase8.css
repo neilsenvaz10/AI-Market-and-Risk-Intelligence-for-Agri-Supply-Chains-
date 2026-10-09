@@ -1,0 +1,484 @@
+/**
+ * FASALYTICS Phase 8 — Smart Farmer Features Styling
+ * Designed for rich aesthetics, glassmorphism, responsive grids, and Stitch MD3 compatibility.
+ */
+
+/* ── Container & Layout ── */
+.phase8-page {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding-bottom: 2rem;
+  gap: 1.5rem;
+}
+
+.phase8-page--loading,
+.phase8-page--error {
+  min-height: 50vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  text-align: center;
+}
+
+.phase8-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(8, 109, 57, 0.15);
+  border-top-color: #086d39;
+  border-radius: 50%;
+  animation: phase8-spin 0.8s linear infinite;
+}
+
+@keyframes phase8-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Header ── */
+.phase8-page__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  border-bottom: 1px solid rgba(0, 38, 13, 0.08);
+  padding-bottom: 1rem;
+}
+
+.phase8-page__title {
+  font-size: 1.625rem;
+  font-weight: 800;
+  color: #00260d;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.phase8-page__subtitle {
+  font-size: 0.875rem;
+  color: #4b6354;
+  margin: 0.25rem 0 0 0;
+}
+
+.phase8-dashboard__welcome {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #086d39;
+  margin: 0.25rem 0 0 0;
+}
+
+/* ── Quick Nav Bar ── */
+.phase8-quick-nav {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0.25rem 0;
+  scrollbar-width: none;
+}
+.phase8-quick-nav::-webkit-scrollbar { display: none; }
+
+.phase8-quick-nav__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: 9999px;
+  background: #eaf5ee;
+  color: #00260d;
+  font-size: 0.825rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(8, 109, 57, 0.15);
+}
+
+.phase8-quick-nav__item:hover,
+.phase8-quick-nav__item--active {
+  background: #086d39;
+  color: #ffffff;
+  border-color: #086d39;
+}
+
+/* ── Data Provenance Note ── */
+.phase8-data-note {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.75rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.phase8-data-note__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  background: #16a34a;
+  color: #ffffff;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+/* ── Sections ── */
+.phase8-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.phase8-section__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.phase8-section__title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #00260d;
+  margin: 0;
+}
+
+/* ── Badges & Chips ── */
+.phase8-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.phase8-badge--alert {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.phase8-badge--success {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.phase8-badge--neutral {
+  background: #f3f4f6;
+  color: #4b5563;
+  border: 1px solid #e5e7eb;
+}
+
+.phase8-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.phase8-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 9999px;
+  background: #f4f6f4;
+  color: #1a2e22;
+  font-size: 0.825rem;
+  font-weight: 500;
+  border: 1px solid #d9e2db;
+}
+
+.phase8-chip--default {
+  background: #e8f5ec;
+  color: #086d39;
+  border-color: #a3d9b5;
+  font-weight: 600;
+}
+
+/* ── Price Cards & Grids ── */
+.phase8-price-grid,
+.phase8-alert-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.phase8-price-card,
+.phase8-alert-card,
+.phase8-card {
+  background: #ffffff;
+  border-radius: 1rem;
+  padding: 1.125rem;
+  box-shadow: 0 1px 4px rgba(0, 38, 13, 0.05);
+  border: 1px solid rgba(0, 38, 13, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.phase8-price-card:hover,
+.phase8-alert-card:hover,
+.phase8-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 38, 13, 0.08);
+}
+
+.phase8-price-card__header,
+.phase8-alert-card__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.phase8-price-card__commodity,
+.phase8-alert-card__commodity {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #00260d;
+}
+
+.phase8-price-card__mandi,
+.phase8-alert-card__mandi {
+  font-size: 0.825rem;
+  color: #4b6354;
+}
+
+.phase8-price-card__price {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #086d39;
+}
+
+.phase8-price-card__unit {
+  font-size: 0.825rem;
+  font-weight: 500;
+  color: #4b6354;
+}
+
+.phase8-price-card__meta,
+.phase8-alert-card__triggered {
+  font-size: 0.75rem;
+  color: #6c7e73;
+}
+
+.phase8-alert-card__detail {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.phase8-alert-card__price {
+  font-weight: 700;
+  color: #086d39;
+}
+
+/* ── Trigger History Cards ── */
+.phase8-trigger-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.phase8-trigger-card {
+  background: #ffffff;
+  border-radius: 0.875rem;
+  padding: 1rem;
+  border: 1px solid rgba(0, 38, 13, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.phase8-trigger-card__header {
+  font-size: 0.95rem;
+  color: #00260d;
+}
+
+.phase8-trigger-card__prices {
+  display: flex;
+  gap: 1.5rem;
+  font-size: 0.875rem;
+  color: #086d39;
+  font-weight: 600;
+}
+
+.phase8-trigger-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+  color: #4b6354;
+}
+
+/* ── Notifications ── */
+.phase8-notif-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.phase8-notif {
+  background: #ffffff;
+  border-radius: 0.875rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid rgba(0, 38, 13, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.phase8-notif--unread {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.phase8-notif__time {
+  font-size: 0.725rem;
+  color: #6c7e73;
+  margin-top: 0.25rem;
+}
+
+/* ── Coming Soon ── */
+.phase8-section--future {
+  opacity: 0.85;
+}
+
+.phase8-coming-soon {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  background: #f8faf8;
+  border: 1px dashed #cbd5cb;
+  border-radius: 0.75rem;
+  font-size: 0.85rem;
+  color: #4b6354;
+}
+
+/* ── Empty State ── */
+.phase8-empty {
+  padding: 1.5rem;
+  background: #f9fbf9;
+  border-radius: 0.875rem;
+  border: 1px dashed #d1ded4;
+  text-align: center;
+  color: #4b6354;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+}
+
+/* ── Buttons & Forms ── */
+.phase8-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.625rem 1.125rem;
+  border-radius: 0.625rem;
+  background: #086d39;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.phase8-btn:hover {
+  background: #06532b;
+}
+
+.phase8-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.phase8-btn--sm {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8rem;
+  border-radius: 0.5rem;
+}
+
+.phase8-btn--outline {
+  background: transparent;
+  color: #086d39;
+  border: 1px solid #086d39;
+}
+
+.phase8-btn--outline:hover {
+  background: #eaf5ee;
+}
+
+.phase8-btn--danger {
+  background: #dc2626;
+}
+.phase8-btn--danger:hover {
+  background: #b91c1c;
+}
+
+.phase8-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.phase8-label {
+  font-size: 0.825rem;
+  font-weight: 600;
+  color: #00260d;
+}
+
+.phase8-input,
+.phase8-select {
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.625rem;
+  border: 1px solid #cbd5cb;
+  background: #ffffff;
+  font-size: 0.875rem;
+  color: #00260d;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.phase8-input:focus,
+.phase8-select:focus {
+  border-color: #086d39;
+  box-shadow: 0 0 0 2px rgba(8, 109, 57, 0.15);
+}
+
+.phase8-link {
+  font-size: 0.825rem;
+  font-weight: 600;
+  color: #086d39;
+  text-decoration: none;
+  margin-top: 0.25rem;
+}
+
+.phase8-link:hover {
+  text-decoration: underline;
+}
+
+.phase8-page__footer {
+  font-size: 0.75rem;
+  color: #6c7e73;
+  text-align: center;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(0, 38, 13, 0.08);
+}

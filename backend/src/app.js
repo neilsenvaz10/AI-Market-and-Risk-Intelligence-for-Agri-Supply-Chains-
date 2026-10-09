@@ -8,7 +8,10 @@ import createMandiRoutes from './routes/mandi.routes.js';
 import createMarketRoutes from './routes/market.routes.js';
 import createForecastRoutes from './routes/forecast.routes.js';
 import createCopilotRoutes from './routes/copilot.routes.js';
+import createFarmerPhase8Routes from './routes/farmerPhase8.routes.js';
+import createAdminPhase8Routes from './routes/adminPhase8.routes.js';
 import { requireAuth as defaultRequireAuth } from './middleware/auth.js';
+import { createRequireAdminClaim } from './middleware/ingestionAuth.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { createEmailProvider } from './services/email/emailProvider.js';
 import { createWelcomeEmailService } from './services/email/welcomeEmail.service.js';
@@ -98,6 +101,10 @@ export function createApp({
   app.use('/api', createMarketRoutes());
   app.use('/api/forecast', createForecastRoutes());
   app.use('/api/copilot', createCopilotRoutes({ requireAuth, ...copilotRoutesOptions }));
+  // Phase 8: Smart Farmer Features
+  app.use('/api/farmer', createFarmerPhase8Routes(requireAuth));
+  // Phase 8: Admin alert evaluation (requires admin claim)
+  app.use('/api/admin', createAdminPhase8Routes(requireAuth, createRequireAdminClaim()));
 
   // Error handling
   app.use(notFoundHandler);

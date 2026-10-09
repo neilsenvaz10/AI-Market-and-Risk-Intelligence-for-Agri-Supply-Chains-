@@ -174,12 +174,27 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Demo notice — everything above the mandi price card is still sample content */}
-      <div className="bg-surface-container-high text-on-surface-variant px-3 py-2 rounded-xl mb-3 flex items-center gap-2">
-        <span className="material-symbols-outlined text-[16px]">info</span>
-        <p className="font-body-sm text-[11px]">
-          {t(language, 'home.demoNoticePartial')}
-        </p>
+      {/* Phase 8 — Personalized Farmer Dashboard Banner */}
+      <div className="bg-primary text-on-primary p-4 rounded-2xl mb-4 shadow-sm flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-secondary text-on-secondary flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-[22px]">dashboard</span>
+          </div>
+          <div>
+            <p className="font-label-lg text-sm font-bold">
+              {t(language, 'p8.nav.dashboard')}
+            </p>
+            <p className="font-body-sm text-xs opacity-90">
+              {t(language, 'p8.dashboard.subtitle')}
+            </p>
+          </div>
+        </div>
+        <Link
+          to="/farmer/dashboard"
+          className="bg-surface text-primary px-3 py-1.5 rounded-lg font-label-md text-xs font-bold shadow-sm active:scale-95 transition-transform whitespace-nowrap"
+        >
+          View Dashboard →
+        </Link>
       </div>
 
       {/* Dark Green Hero Card — illustrative concept, NOT a live recommendation. */}

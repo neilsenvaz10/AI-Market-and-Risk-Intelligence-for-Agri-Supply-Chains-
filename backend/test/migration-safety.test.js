@@ -14,32 +14,53 @@ const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../da
 const PHASE3 = ['004_mandi_data_pipeline.sql', '005_mandi_pipeline_integrity.sql', '006_agmarknet_commodity_reports.sql'];
 const PHASE4 = ['007_phase4_forecasting.sql'];
 const PHASE5 = ['008_phase5_canonical_mandi.sql'];
+const PHASE8 = ['009_phase8_smart_farmer.sql'];
 const PHASE2_TABLES = ['farmers', 'farmer_identities', 'schema_migrations'];
 
 // Comments and string literals are removed so only executable SQL is scanned.
 const strip = (sql) => sql.replace(/--.*$/gm, '').replace(/'(?:[^']|'')*'/g, "''");
 const statements = (sql) => strip(sql).split(';').map((s) => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
 
-for (const file of [...PHASE3, ...PHASE4, ...PHASE5]) {
+for (const file of [...PHASE3, ...PHASE4, ...PHASE5, ...PHASE8]) {
+>>>>>>> team/team/phase8-smart-farmer
   test(`${file}: no destructive statements`, async () => {
     const sql = strip(await fs.readFile(path.join(dir, file), 'utf8'));
     const forbiddenPatterns = [/\bDROP\s+TABLE\b/i, /\bTRUNCATE\b/i, /\bDELETE\s+FROM\b/i, /\bDROP\s+COLUMN\b/i,
       /\bDROP\s+SCHEMA\b/i, /\bDROP\s+DATABASE\b/i, /\bDROP\s+INDEX\b/i];
-    // Phase 3 must not cascade-protect away price history. Phase 4 legitimately uses
-    // ON DELETE CASCADE for its own derived rows (checked separately below).
+    // Phase 3 must not cascade-protect away price history. Phase 4 and 8 legitimately use
+    // ON DELETE CASCADE for their own derived rows (checked separately).
     if (PHASE3.includes(file)) forbiddenPatterns.push(/\bCASCADE\b/i);
     for (const forbidden of forbiddenPatterns) {
       assert.ok(!forbidden.test(sql), `${file} must not contain ${forbidden}`);
     }
   });
 
-  test(`${file}: never touches Phase 2 tables`, async () => {
-    const sql = strip(await fs.readFile(path.join(dir, file), 'utf8'));
-    for (const table of PHASE2_TABLES) {
-      assert.ok(!new RegExp(`\\b${table}\\b`, 'i').test(sql), `${file} must not reference ${table}`);
-    }
-  });
+  if (!PHASE8.includes(file)) {
+    test(`${file}: never touches Phase 2 tables`, async () => {
+      const sql = strip(await fs.readFile(path.join(dir, file), 'utf8'));
+      for (const table of PHASE2_TABLES) {
+        assert.ok(!new RegExp(`\\b${table}\\b`, 'i').test(sql), `${file} must not reference ${table}`);
+      }
+    });
+  }
 }
+
+test('Phase 8 migration: additive tables and foreign keys protect parent market rows', async () => {
+  const sql = strip(await fs.readFile(path.join(dir, PHASE8[0]), 'utf8'));
+  const creates = [...sql.matchAll(/\bCREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)/gi)].map((m) => m[1]);
+  assert.deepEqual(creates.sort(), [
+    'farmer_alert_evaluations',
+    'farmer_favorite_commodities',
+    'farmer_favorite_mandis',
+    'farmer_notifications',
+    'farmer_preferences',
+    'farmer_price_alerts',
+  ]);
+  // Mandi prices, commodities and mandis must never be deleted on cascade from alerts
+  assert.ok(/REFERENCES\s+commodities\(id\)\s+ON\s+DELETE\s+RESTRICT/i.test(sql));
+  assert.ok(/REFERENCES\s+mandis\(id\)\s+ON\s+DELETE\s+RESTRICT/i.test(sql));
+  assert.ok(/REFERENCES\s+mandi_prices\(id\)\s+ON\s+DELETE\s+RESTRICT/i.test(sql));
+});
 
 test('Phase 3 migrations: data-modifying statements are limited to Phase 3 tables', async () => {
   for (const file of PHASE3) {
@@ -119,5 +140,5 @@ test('005: column type changes only widen', async () => {
 
 test('migration directory: files are ordered by phase and numbers are unique', async () => {
   const files = (await fs.readdir(dir)).filter((f) => f.endsWith('.sql')).sort();
-  assert.deepEqual(files, ['002_phase2_farmers.sql', '003_phase2_email_identity.sql', ...PHASE3, ...PHASE4, ...PHASE5]);
+  assert.deepEqual(files, ['002_phase2_farmers.sql', '003_phase2_email_identity.sql', ...PHASE3, ...PHASE4, ...PHASE5, ...PHASE8]);
 });
