@@ -18,7 +18,8 @@ export default function ProtectedRoute({ step }) {
   if (initializing) return <AuthStatusScreen message="Checking your session..." />;
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    const target = location.pathname === '/' ? '/landing' : '/login';
+    return <Navigate to={target} replace state={{ from: location.pathname }} />;
   }
 
   if (profileStatus === 'loading' || profileStatus === 'idle') {
