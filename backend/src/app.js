@@ -6,7 +6,10 @@ import createAuthRoutes from './routes/auth.routes.js';
 import createFarmerRoutes from './routes/farmer.routes.js';
 import createMandiRoutes from './routes/mandi.routes.js';
 import createForecastRoutes from './routes/forecast.routes.js';
+import createFarmerPhase8Routes from './routes/farmerPhase8.routes.js';
+import createAdminPhase8Routes from './routes/adminPhase8.routes.js';
 import { requireAuth as defaultRequireAuth } from './middleware/auth.js';
+import { createRequireAdminClaim } from './middleware/ingestionAuth.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { createEmailProvider } from './services/email/emailProvider.js';
 import { createWelcomeEmailService } from './services/email/welcomeEmail.service.js';
@@ -50,7 +53,7 @@ export function createApp({
     res.json({
       name: 'FASALYTICS API Backend',
       version: '1.0.0',
-      phase: 'Phase 4 - Price Forecasting',
+      phase: 'Phase 8 - Smart Farmer Features',
       endpoints: {
         health: '/api/health',
         databaseHealth: '/api/health/database',
@@ -81,6 +84,10 @@ export function createApp({
   app.use('/api/farmers', createFarmerRoutes(requireAuth));
   app.use('/api/mandi', createMandiRoutes({ requireAuth, ...mandiRoutesOptions }));
   app.use('/api/forecast', createForecastRoutes());
+  // Phase 8: Smart Farmer Features
+  app.use('/api/farmer', createFarmerPhase8Routes(requireAuth));
+  // Phase 8: Admin alert evaluation (requires admin claim)
+  app.use('/api/admin', createAdminPhase8Routes(requireAuth, createRequireAdminClaim()));
 
   // Error handling
   app.use(notFoundHandler);

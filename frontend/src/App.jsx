@@ -6,7 +6,6 @@ import SplashOnboardingPage from './pages/SplashOnboardingPage';
 import AskAiPage from './pages/AskAiPage';
 import RecommendationResultPage from './pages/RecommendationResultPage';
 import MandisPage from './pages/MandisPage';
-import AlertsPage from './pages/AlertsPage';
 import ProfilePage from './pages/ProfilePage';
 import LoginPage from './pages/LoginPage';
 import VerifyOtpPage from './pages/VerifyOtpPage';
@@ -18,6 +17,13 @@ import VerifyEmailPage from './pages/VerifyEmailPage';
 import AddEmailPage from './pages/AddEmailPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import FarmerDashboardPage from './pages/FarmerDashboardPage';
+import FarmerFavoritesPage from './pages/FarmerFavoritesPage';
+import FarmerAlertsPage from './pages/FarmerAlertsPage';
+import FarmerNotificationsPage from './pages/FarmerNotificationsPage';
+import FarmerHistoryPage from './pages/FarmerHistoryPage';
+import FarmerPreferencesPage from './pages/FarmerPreferencesPage';
+import './styles/phase8.css';
 import { SETUP_ROUTES } from './utils/setupSteps';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
@@ -60,10 +66,17 @@ function App() {
             <Route path="onboarding" element={<SplashOnboardingPage />} />
             <Route element={<ProtectedRoute />}>
               <Route index element={<HomePage />} />
+              <Route path="dashboard" element={<FarmerDashboardPage />} />
+              <Route path="farmer/dashboard" element={<FarmerDashboardPage />} />
+              <Route path="farmer/favorites" element={<FarmerFavoritesPage />} />
+              <Route path="farmer/alerts" element={<FarmerAlertsPage />} />
+              <Route path="farmer/notifications" element={<FarmerNotificationsPage />} />
+              <Route path="farmer/history" element={<FarmerHistoryPage />} />
+              <Route path="farmer/preferences" element={<FarmerPreferencesPage />} />
               <Route path="ask-ai" element={<AskAiPage />} />
               <Route path="recommendation" element={<RecommendationResultPage />} />
               <Route path="mandis" element={<MandisPage />} />
-              <Route path="alerts" element={<AlertsPage />} />
+              <Route path="alerts" element={<FarmerAlertsPage />} />
               <Route path="profile" element={<ProfilePage />} />
             </Route>
           </Route>

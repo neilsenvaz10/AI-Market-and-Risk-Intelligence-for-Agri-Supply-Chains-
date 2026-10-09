@@ -269,7 +269,9 @@ test('source scan: keys are interpolated only into the CEDA Authorization header
 
 test('secret files: .env is git-ignored and .env.example holds no credential values', async () => {
   const repoRoot = path.resolve(backendDir, '..');
-  const gitignore = await fs.readFile(path.join(repoRoot, '.gitignore'), 'utf8');
+  const gitignoreRaw = await fs.readFile(path.join(repoRoot, '.gitignore'), 'utf8');
+  // Normalize CRLF → LF so multiline $ works correctly on Windows
+  const gitignore = gitignoreRaw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   assert.match(gitignore, /^\.env$/m);
   assert.match(gitignore, /^\*\.env$/m);
   assert.match(gitignore, /^backend\/data\/$/m);
