@@ -75,3 +75,4 @@ postgres_data/
 *.csv.gz
 *.json.gz
 *.csv
+frontend/harness-tmp/

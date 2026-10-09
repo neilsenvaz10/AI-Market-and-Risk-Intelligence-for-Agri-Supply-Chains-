@@ -40,16 +40,15 @@ export const config = {
     apiKey: (process.env.SARVAM_API_KEY || '').trim() || undefined,
     baseUrl: (process.env.SARVAM_API_URL || 'https://api.sarvam.ai').trim().replace(/\/+$/, ''),
     timeoutMs: parseInt(process.env.SARVAM_TIMEOUT_MS || '20000', 10),
-    sttModel: process.env.SARVAM_STT_MODEL || 'saaras:v3',
+    // saaras:v4 accepts domain keyterms (crop / market names); v3 is the automatic fallback.
+    sttModel: process.env.SARVAM_STT_MODEL || 'saaras:v4',
+    sttFallbackModel: process.env.SARVAM_STT_FALLBACK_MODEL || 'saaras:v3',
     ttsModel: process.env.SARVAM_TTS_MODEL || 'bulbul:v3',
+    ttsCodec: process.env.SARVAM_TTS_CODEC || 'mp3',
+    ttsSpeaker: (process.env.SARVAM_TTS_SPEAKER || '').trim() || undefined,
   },
-  // Groq: the chat model. The key stays on the backend (GROQ_API_KEY).
-  groq: {
-    apiKey: (process.env.GROQ_API_KEY || '').trim() || undefined,
-    baseUrl: (process.env.GROQ_API_URL || 'https://api.groq.com/openai/v1').trim().replace(/\/+$/, ''),
-    model: process.env.GROQ_CHAT_MODEL || 'llama-3.3-70b-versatile',
-    timeoutMs: parseInt(process.env.GROQ_TIMEOUT_MS || '20000', 10),
-  },
+  // The chat model (Groq) is configured inside services/groq.service.js: GROQ_API_KEY, and
+  // optionally GROQ_MODEL (default: the best available of a preference list). The key stays on the backend.
   // Mandi pipeline: safe defaults (no provider, scheduler off, no sample-data writes).
   mandi: parseMandiConfig(process.env),
 };

@@ -441,12 +441,13 @@ export function AuthProvider({ children }) {
     saveProfile,
     setLanguage,
     reloadProfile: () => (auth?.currentUser ? loadSession(auth.currentUser) : Promise.resolve()),
+    withToken,
     logout,
   }), [user, account, farmer, initializing, profileStatus, profileError, authError, language, pendingOtp,
     pendingGoogleLink, signupPhone, setupStep, hasPasswordResetProof, loginWithEmail, signUp, signInWithGoogle,
     linkGoogle, addEmailPassword, startVerifiedEmailUpgrade, completeVerifiedEmailUpgrade, createPasswordForAccount,
     resendVerificationEmail, refreshAccount, startOtp, resendOtp, confirmOtp,
-    resetPassword, registerProfile, saveProfile, setLanguage, loadSession, logout]);
+    resetPassword, registerProfile, saveProfile, setLanguage, loadSession, withToken, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

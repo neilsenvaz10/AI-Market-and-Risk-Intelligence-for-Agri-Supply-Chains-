@@ -20,14 +20,14 @@ export default function BottomNav() {
   };
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-50 pb-safe bg-surface/90 backdrop-blur-xl shadow-[0_-1px_8px_rgba(0,38,13,0.06)]">
-      <div className="flex justify-around items-center h-20 max-w-5xl mx-auto px-space-sm">
+    <nav className="w-full shrink-0 z-40 bg-surface/95 backdrop-blur-xl border-t border-outline-variant/20 shadow-[0_-1px_8px_rgba(0,38,13,0.06)]">
+      <div className="flex justify-around items-center h-16 max-w-5xl mx-auto px-1">
         {navItems.map((item) => (
           <Link
             key={item.dataPath}
             to={item.path}
             data-path={item.dataPath}
-            className={`flex flex-col items-center justify-center gap-space-xs w-16 h-16 transition-all rounded-xl ${
+            className={`flex flex-col items-center justify-center gap-0.5 w-14 h-13 py-1 transition-all rounded-xl ${
               isActive(item.path)
                 ? 'bg-secondary-container text-on-secondary-container font-bold'
                 : 'text-on-surface-variant'

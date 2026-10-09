@@ -4,16 +4,17 @@ import useVoiceRecorder from '../hooks/useVoiceRecorder';
 import { transcribeAudio } from '../services/assistantApi';
 import { t } from '../i18n/strings';
 import { serviceErrorKey } from '../utils/speech';
+import { unlockAudio } from '../voice/audioPlayer';
 
 /**
- * Microphone button (Stitch mic styling). Tap to record, tap again to stop; the recording is
- * transcribed by Sarvam AI through the backend and the text is passed to `onTranscript`.
- * Unsupported browsers or an unconfigured service keep a visible, disabled button with an
- * explanation instead of failing silently.
+ * Microphone button (Stitch mic styling) for dictation. Tap to record; the recording ends when
+ * the farmer stops talking (or on a second tap), is transcribed by Sarvam AI through the
+ * backend, and the text is passed to `onTranscript`. Unsupported browsers or an unconfigured
+ * service keep a visible, disabled button with an explanation instead of failing silently.
+ * `getToken` can be injected to reuse this button outside the Ask AI page.
  */
 export default function VoiceInputButton({ language = 'en', onTranscript, disabled = false, className = '', getToken }) {
   const { user } = useAuth();
-  // `getToken` can be injected to reuse this button outside the Ask AI page.
   const tokenOfRef = useRef(null);
   useEffect(() => { tokenOfRef.current = getToken || (() => user.getIdToken()); }, [getToken, user]);
   const [busy, setBusy] = useState(false);
@@ -32,7 +33,7 @@ export default function VoiceInputButton({ language = 'en', onTranscript, disabl
     }
   }, [language, onTranscript]);
 
-  const { supported, reason, recording, error, start, stop, clearError } = useVoiceRecorder({ onAudio: handleAudio });
+  const { supported, reason, recording, error, start, stop, clearError } = useVoiceRecorder({ onAudio: handleAudio, autoStop: true });
 
   const problem = !supported ? (reason === 'insecure' ? 'insecure' : 'unsupported') : error || serviceError;
   const message = problem
@@ -46,7 +47,6 @@ export default function VoiceInputButton({ language = 'en', onTranscript, disabl
       <button
         type="button"
         aria-label={label}
-        aria-pressed={recording}
         title={unavailable && message ? message : label}
         disabled={unavailable || busy}
         onClick={() => {
@@ -54,6 +54,7 @@ export default function VoiceInputButton({ language = 'en', onTranscript, disabl
           else {
             clearError();
             setServiceError(null);
+            unlockAudio();
             start();
           }
         }}

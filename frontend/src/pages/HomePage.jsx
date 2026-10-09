@@ -5,6 +5,7 @@ import { formatQuantity, translateCrop, translateLocation } from '../constants/p
 import { t } from '../i18n/strings';
 import { deriveFreshness, describeError, EMPTY_ROWS, marketApi } from '../services/marketApi';
 import { formatFetchedAt, formatReportDate, sourceLabel } from '../utils/mandiFeed';
+import MandiPriceComparison from '../components/MandiPriceComparison';
 
 /**
  * Dashboard — the "Today's Mandi Prices" card and the data-freshness tile are
@@ -197,42 +198,8 @@ export default function HomePage() {
         </Link>
       </div>
 
-      {/* Dark Green Hero Card — illustrative concept, NOT a live recommendation. */}
-      <Link
-        to="/recommendation"
-        className="block bg-primary text-on-primary rounded-xl p-5 mb-4 shadow-md relative overflow-hidden active:scale-[0.99] transition-transform"
-      >
-        <div className="absolute -right-10 -bottom-10 w-36 h-36 bg-secondary/10 rounded-full blur-2xl pointer-events-none"></div>
-        <div className="flex justify-between items-start mb-3">
-          <div>
-            <p className="font-body-sm text-primary-fixed-dim uppercase tracking-wider text-[11px] font-semibold flex items-center gap-1.5">
-              {t(language, 'home.hero.expectedReturn')}
-              <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.5 rounded tracking-normal">
-                {t(language, 'home.demoBadge')}
-              </span>
-            </p>
-            <h2 className="font-headline-xl text-on-primary mt-0.5">₹19,800</h2>
-          </div>
-          <span className="bg-tertiary-fixed text-on-tertiary-fixed px-2.5 py-1 rounded-full font-label-md text-xs font-bold shadow-sm">
-            {t(language, 'home.hero.sellTomorrow')}
-          </span>
-        </div>
-        {/* Split bar Pune 60% / Ahmednagar 40% — illustrative split, no API call. */}
-        <div className="mt-4 pt-3 border-t border-primary-fixed/10">
-          <div className="flex justify-between text-xs font-body-sm text-primary-fixed-dim mb-1.5">
-            <span>{t(language, 'home.hero.suggestedAllocation')}</span>
-            <span className="font-medium text-on-primary">{t(language, 'home.hero.splitRatio')}</span>
-          </div>
-          <div className="h-2.5 w-full bg-primary-container rounded-full overflow-hidden flex shadow-inner">
-            <div className="bg-secondary-fixed h-full transition-all duration-500" style={{ width: '60%' }}></div>
-            <div className="bg-tertiary-fixed h-full transition-all duration-500" style={{ width: '40%' }}></div>
-          </div>
-          <div className="flex justify-between text-[11px] text-primary-fixed-dim mt-1">
-            <span>{t(language, 'home.hero.punePrice')}</span>
-            <span>{t(language, 'home.hero.ahmednagarPrice')}</span>
-          </div>
-        </div>
-      </Link>
+      {/* Verified mandi price comparison (reported modal prices only) */}
+      <MandiPriceComparison farmer={farmer} language={language} />
 
       {/* Alert Strip — body is the largest REAL reported arrivals, never a mock percentage. */}
       <Link

@@ -93,7 +93,7 @@ afterEach(() => {
 async function fillProfile(language = 'en') {
   await screen.findByRole('heading', { name: t(language, 'registerTitle') });
   for (const [field, value] of Object.entries({
-    state: 'Maharashtra', district: 'Nashik', primaryCrop: 'Onion', cropQuantity: '25',
+    state: 'Maharashtra', district: 'Nashik', primaryCrop: 'Onion',
   })) {
     fireEvent.change(screen.getByLabelText(t(language, `profile.form.${field}`)), { target: { value } });
   }
@@ -111,7 +111,6 @@ describe('registration and dashboard regression', () => {
     await screen.findByRole('heading', { name: 'Complete your profile' });
     submit();
     expect(screen.getByText('Please select your state')).toBeTruthy();
-    expect(screen.getByText('Quantity is required')).toBeTruthy();
     expect(profileWrites()).toHaveLength(0);
     expect(window.location.pathname).toBe('/register');
   });
@@ -124,7 +123,7 @@ describe('registration and dashboard regression', () => {
     await screen.findByRole('heading', { name: t(language, 'greeting', { name: 'Test' }) });
     expect(window.location.pathname).toBe('/');
     expect(profileWrites()).toHaveLength(1);
-    expect(savedProfile).toMatchObject({ cropQuantity: 25, preferredLanguage: language });
+    expect(savedProfile).toMatchObject({ preferredLanguage: language });
     expect(screen.queryByRole('heading', { name: t(language, 'registerTitle') })).toBeNull();
   });
 
@@ -136,7 +135,6 @@ describe('registration and dashboard regression', () => {
     await screen.findByText('Please correct the highlighted fields.');
     expect(screen.getByText('Enter a valid district name')).toBeTruthy();
     expect(window.location.pathname).toBe('/register');
-    expect(screen.getByLabelText('Crop Quantity').value).toBe('25');
     saveFailure = null;
     submit();
     await screen.findByRole('heading', { name: 'Hello, Test' });

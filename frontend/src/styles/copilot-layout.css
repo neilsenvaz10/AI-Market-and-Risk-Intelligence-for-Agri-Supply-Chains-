@@ -1,0 +1,47 @@
+/* Copilot owns one scroll region; chrome and composer stay in shell flow. */
+.copilot-shell > header,
+.copilot-shell > nav {
+  position: relative;
+  inset: auto;
+  flex: none;
+}
+.copilot-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  padding: 12px 16px 8px;
+  overflow: hidden;
+}
+.copilot-content > :first-child {
+  flex: none;
+  max-height: 20%;
+  overflow-y: auto;
+}
+.copilot-page { flex: 1; min-width: 0; }
+.copilot-page > header {
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+}
+.copilot-page > header > div:first-child,
+.copilot-page > header > div:first-child > div:last-child { min-width: 0; }
+.copilot-log {
+  overscroll-behavior-y: contain;
+  overflow-wrap: anywhere;
+  -webkit-overflow-scrolling: touch;
+}
+.copilot-composer { min-width: 0; }
+.copilot-voice-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.copilot-voice-options > button {
+  justify-content: center;
+  padding-inline: 6px;
+  line-height: 16px;
+  min-width: 0;
+}
+.copilot-voice-options .material-symbols-outlined { flex: none; }

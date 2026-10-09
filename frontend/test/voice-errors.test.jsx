@@ -9,6 +9,13 @@ import * as voice from '../src/voice';
 
 vi.mock('../src/context/AuthContext', () => ({ useAuth: () => ({ user: { getIdToken: async () => 'auth-token' } }) }));
 vi.mock('../src/services/assistantApi');
+vi.mock('../src/voice/audioPlayer', () => ({
+  unlockAudio: vi.fn(),
+  stopAudio: vi.fn(),
+  isAudioPlaying: vi.fn(() => false),
+  playAudioUrl: vi.fn(),
+  audioUrlFromBase64: vi.fn(),
+}));
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); delete globalThis.MediaRecorder; delete window.MediaRecorder; });
 beforeEach(() => vi.clearAllMocks());
@@ -89,7 +96,12 @@ it('the token source can be injected so the Phase 7 Copilot can reuse the button
 });
 
 it('the reusable voice entry point exports the public pieces', () => {
-  for (const name of ['VoiceInputButton', 'SpeakButton', 'useVoiceRecorder', 'transcribeAudio', 'synthesizeSpeech', 'getAssistantCapabilities']) {
+  for (const name of [
+    'VoiceInputButton', 'SpeakButton', 'useVoiceRecorder', 'useVoiceConversation', 'speakText', 'unlockAudio', 'stopAudio',
+    'transcribeAudio', 'synthesizeSpeech', 'getAssistantCapabilities',
+  ]) {
     expect(voice[name], name).toBeTruthy();
   }
+  // the chat endpoint was removed: the Copilot is the only chatbot
+  expect(voice.sendChatMessage).toBeUndefined();
 });

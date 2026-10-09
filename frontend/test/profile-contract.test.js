@@ -25,7 +25,6 @@ describe('frontend/backend profile contract', () => {
     expect(validateProfile(EMPTY_PROFILE)).toMatchObject({
       fullName: 'Full name is required', state: 'Please select your state',
       district: 'District is required', primaryCrop: 'Primary crop is required',
-      cropQuantity: 'Quantity is required',
     });
   });
 });

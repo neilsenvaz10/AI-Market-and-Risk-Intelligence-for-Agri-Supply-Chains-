@@ -254,8 +254,9 @@ test('copilot api: falls back to deterministic verified generator when groq is u
     });
     assert.equal(res.status, 200);
     assert.equal(res.body.groqPowered, false);
-    assert.match(res.body.answer, /₹1650\/quintal/);
+    assert.match(res.body.answer, /1650 rupees per quintal/);
     assert.match(res.body.answer, /Nashik APMC/);
+    assert.match(res.body.answer, /8 October 2026/);
   } finally {
     await close();
   }
@@ -272,7 +273,8 @@ test('copilot api: multilingual query in Marathi returns Marathi grounded respon
     });
     assert.equal(res.status, 200);
     assert.equal(res.body.language, 'mr');
-    assert.match(res.body.answer, /₹1650\/क्विंटल/);
+    assert.match(res.body.answer, /1650 रुपये प्रति क्विंटल/);
+    assert.match(res.body.answer, /8 ऑक्टोबर 2026/);
     assert.match(res.body.answer, /Nashik APMC|नाशिक/);
   } finally {
     await close();

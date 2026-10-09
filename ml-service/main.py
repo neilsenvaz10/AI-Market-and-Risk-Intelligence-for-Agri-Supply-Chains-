@@ -55,5 +55,5 @@ if __name__ == "__main__":
     import uvicorn
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", 8000))
-    print(f"🚀 Starting FASALYTICS ML Service on http://{host}:{port}")
+    print(f">> Starting FASALYTICS ML Service on http://{host}:{port}")
     uvicorn.run("main:app", host=host, port=port, reload=True)

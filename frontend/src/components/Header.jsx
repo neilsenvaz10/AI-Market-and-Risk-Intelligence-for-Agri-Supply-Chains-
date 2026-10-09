@@ -26,8 +26,8 @@ export default function Header() {
   }, []);
 
   return (
-    <header className="fixed top-0 inset-x-0 z-50 bg-primary text-on-primary pt-safe shadow-[0_1px_8px_rgba(0,38,13,0.15)]">
-      <div className="h-16 max-w-6xl mx-auto px-4 sm:px-gutter flex items-center justify-between gap-2">
+    <header className="w-full shrink-0 z-40 bg-primary text-on-primary shadow-[0_1px_8px_rgba(0,38,13,0.15)]">
+      <div className="h-14 max-w-6xl mx-auto px-4 sm:px-gutter flex items-center justify-between gap-2">
         <div className="flex items-center gap-space-sm">
           <Link to="/" className="text-headline-md font-headline-md tracking-tight uppercase">
             Fasalytics

@@ -53,14 +53,14 @@ const validators = {
   village: (v) => validateText(v, { label: 'Village / town', min: 2, max: 100, pattern: PLACE_PATTERN, required: false }),
   primaryCrop: (v) => validateText(v, { label: 'Primary crop', min: 2, max: 64, pattern: CROP_PATTERN, required: true }),
   cropQuantity: (v) => {
-    if (v === undefined || v === null || v === '') return { error: 'Crop quantity is required' };
+    if (v === undefined || v === null || v === '') return { value: 10 };
     const n = typeof v === 'number' ? v : typeof v === 'string' && /^\s*\d+(\.\d+)?\s*$/.test(v) ? Number(v) : NaN;
     if (!Number.isFinite(n)) return { error: 'Crop quantity must be a number' };
     if (n <= 0) return { error: 'Crop quantity must be greater than zero' };
     if (n >= MAX_QUANTITY) return { error: 'Crop quantity is too large' };
     return { value: Math.round(n * 100) / 100 };
   },
-  quantityUnit: (v) => (QUANTITY_UNITS.includes(v) ? { value: v } : { error: 'Quantity unit must be kg or quintal' }),
+  quantityUnit: (v) => (!v ? { value: 'quintal' } : QUANTITY_UNITS.includes(v) ? { value: v } : { error: 'Quantity unit must be kg or quintal' }),
   preferredLanguage: (v) => (LANGUAGES.includes(v) ? { value: v } : { error: 'Preferred language must be en, hi or mr' }),
 };
 

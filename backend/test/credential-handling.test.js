@@ -243,7 +243,7 @@ test('source scan: keys are interpolated only into the CEDA Authorization header
   const allowed = [
     { file: path.join('src', 'pipeline', 'providers', 'ceda.provider.js'), pattern: /Authorization: `Bearer \$\{this\.apiKey\}`/ },
     { file: path.join('src', 'services', 'email', 'emailProvider.js'), pattern: /Authorization: `Bearer \$\{apiKey\}`/ },
-    { file: path.join('src', 'services', 'groq.service.js'), pattern: /Authorization: `Bearer \$\{apiKey\}`/ },
+    { file: path.join('src', 'services', 'groq.service.js'), pattern: /Authorization: `Bearer \$\{this\.apiKey\}`/ },
   ];
   const offenders = [];
   const walk = async (dir) => {

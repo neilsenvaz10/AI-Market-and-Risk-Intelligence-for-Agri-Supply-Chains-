@@ -1,6 +1,6 @@
 ﻿// @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import App from '../src/App';
 import { t } from '../src/i18n/strings';
 
@@ -150,8 +150,37 @@ describe('Phase 7 - AI Farmer Copilot UI', () => {
     await screen.findByText(/The latest modal price for Onion in Nashik is ₹1,650\/quintal/);
 
     // Verify structured market card details appear
-    expect(screen.getByText('₹1650/quintal')).toBeTruthy();
+    expect(screen.getByText('₹1,650/quintal')).toBeTruthy();
+    expect(screen.getByText(/Reported Date: 8 October 2026/)).toBeTruthy();
     expect(screen.getByText(/AGMARKNET/)).toBeTruthy();
+
+    // One chatbot only: the removed /api/assistant/chat endpoint is never called.
+    expect(request.mock.calls.some(([url]) => String(url).includes('/api/assistant/chat'))).toBe(false);
+  });
+
+  it('follow-up questions carry the crop, the market and the recent turns', async () => {
+    const chatBodies = () => request.mock.calls
+      .filter(([url]) => String(url).includes('/api/copilot/chat'))
+      .map(([, options]) => JSON.parse(options.body));
+
+    render(<App />);
+    const input = await screen.findByPlaceholderText(t('en', 'copilot.inputPlaceholder'));
+    fireEvent.change(input, { target: { value: 'onion price in Nashik' } });
+    fireEvent.click(screen.getByRole('button', { name: t('en', 'copilot.send') }));
+    await screen.findByText(/The latest modal price for Onion in Nashik/);
+
+    fireEvent.change(input, { target: { value: 'and how has it changed?' } });
+    fireEvent.click(screen.getByRole('button', { name: t('en', 'copilot.send') }));
+    await waitFor(() => expect(chatBodies()).toHaveLength(2));
+
+    const [first, second] = chatBodies();
+    expect(first.context).toEqual({});
+    expect(first.conversationHistory).toEqual([]);
+    expect(second.context).toEqual({ commodity: 'Onion', mandi: 'Nashik APMC' });
+    expect(second.conversationHistory).toEqual([
+      { role: 'user', content: 'onion price in Nashik' },
+      { role: 'assistant', content: expect.stringContaining('1,650') },
+    ]);
   });
 
   it('clicking a suggestion chip sends the query automatically', async () => {

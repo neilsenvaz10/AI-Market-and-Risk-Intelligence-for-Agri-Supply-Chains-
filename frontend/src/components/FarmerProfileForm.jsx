@@ -108,11 +108,6 @@ export default function FarmerProfileForm({
     }
   };
 
-  const quantityUnitsTranslated = QUANTITY_UNITS.map((u) => ({
-    value: u.value,
-    label: u.value === 'quintal' ? t(language, 'profile.form.unitQuintal') : t(language, 'profile.form.unitKg'),
-  }));
-
   return (
     <form onSubmit={handleSubmit} noValidate aria-busy={submitting} className="flex flex-col gap-space-md">
       <fieldset disabled={submitting} className="flex flex-col gap-space-md min-w-0">
@@ -145,17 +140,6 @@ export default function FarmerProfileForm({
           {COMMON_CROPS.map((c) => <option key={c} value={c} />)}
         </datalist>
       </Field>
-
-      <div>
-        <Field label={t(language, 'profile.form.cropQuantity')} htmlFor="cropQuantity" error={errors.cropQuantity}>
-          <span className="material-symbols-outlined text-on-surface-variant text-[20px] pl-1">scale</span>
-          <input id="cropQuantity" className={inputClass} value={values.cropQuantity} onChange={set('cropQuantity')}
-            placeholder="e.g. 25" inputMode="decimal" />
-        </Field>
-        <div className="mt-space-sm">
-          <ChoiceChips name={t(language, 'profile.form.quantityUnit')} options={quantityUnitsTranslated} value={values.quantityUnit} onChange={set('quantityUnit')} />
-        </div>
-      </div>
 
       <div>
         <span className="text-body-sm font-bold text-on-surface block mb-1">{t(language, 'profile.form.preferredLanguage')}</span>

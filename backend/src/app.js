@@ -67,7 +67,6 @@ export function createApp({
           capabilities: '/api/assistant/capabilities',
           transcribe: 'POST /api/assistant/transcribe?language=en|hi|mr (audio body)',
           speak: 'POST /api/assistant/speak',
-          chat: 'POST /api/assistant/chat',
         },
         forecast: {
           byCommodityAndMandi: '/api/forecast/:commodity/:mandi',

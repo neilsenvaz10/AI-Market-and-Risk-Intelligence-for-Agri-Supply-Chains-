@@ -39,11 +39,12 @@ export function validateProfile(v) {
   if (!crop) errors.primaryCrop = 'Primary crop is required';
   else if (crop.length < 2 || crop.length > 64 || !CROP_RE.test(crop)) errors.primaryCrop = 'Enter a valid crop name';
 
-  const qty = String(v.cropQuantity).trim();
-  if (!qty) errors.cropQuantity = 'Quantity is required';
-  else if (!/^\d+(\.\d{1,2})?$/.test(qty)) errors.cropQuantity = 'Enter a number (up to 2 decimals)';
-  else if (Number(qty) <= 0) errors.cropQuantity = 'Quantity must be greater than zero';
-  else if (Number(qty) >= 10_000_000) errors.cropQuantity = 'Quantity is too large';
+  if (v.cropQuantity !== undefined && v.cropQuantity !== null && String(v.cropQuantity).trim() !== '') {
+    const qty = String(v.cropQuantity).trim();
+    if (!/^\d+(\.\d{1,2})?$/.test(qty)) errors.cropQuantity = 'Enter a number (up to 2 decimals)';
+    else if (Number(qty) <= 0) errors.cropQuantity = 'Quantity must be greater than zero';
+    else if (Number(qty) >= 10_000_000) errors.cropQuantity = 'Quantity is too large';
+  }
 
   return errors;
 }
@@ -55,8 +56,8 @@ export function toPayload(v) {
     district: v.district.trim(),
     village: v.village.trim() || null,
     primaryCrop: v.primaryCrop.trim(),
-    cropQuantity: Number(v.cropQuantity),
-    quantityUnit: v.quantityUnit,
+    cropQuantity: v.cropQuantity ? Number(v.cropQuantity) : 10,
+    quantityUnit: v.quantityUnit || 'quintal',
     preferredLanguage: v.preferredLanguage,
   };
 }

@@ -108,6 +108,7 @@ export default function MandisPage() {
   const [activeTab, setActiveTab] = useState('mandis'); // 'mandis' | 'national'
   const [nationalFeed, setNationalFeed] = useState({ status: 'loading', rows: [], meta: null });
   const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [sortBy, setSortBy] = useState('default');
   // A completed fetch only. `null` means "in flight", which is how the loading
   // state is derived rather than written by an effect.
   const [feed, setFeed] = useState(null);
@@ -244,6 +245,25 @@ export default function MandisPage() {
 
   const status = feed === null ? 'loading' : feed.error ? 'error' : 'ready';
   const rows = feed?.rows ?? EMPTY_ROWS;
+
+  const sortedRows = useMemo(() => {
+    const list = [...rows];
+    switch (sortBy) {
+      case 'price-desc':
+        return list.sort((a, b) => (Number(b.prices?.modal) || 0) - (Number(a.prices?.modal) || 0));
+      case 'price-asc':
+        return list.sort((a, b) => (Number(a.prices?.modal) || 0) - (Number(b.prices?.modal) || 0));
+      case 'arrivals-desc':
+        return list.sort((a, b) => (Number(b.arrivals?.quantity) || 0) - (Number(a.arrivals?.quantity) || 0));
+      case 'date-desc':
+        return list.sort((a, b) => new Date(b.reportedDate || 0) - new Date(a.reportedDate || 0));
+      case 'name-asc':
+        return list.sort((a, b) => (a.mandi?.name || a.mandi?.code || '').localeCompare(b.mandi?.name || b.mandi?.code || ''));
+      default:
+        return list;
+    }
+  }, [rows, sortBy]);
+
   const error = feed?.error ?? null;
   const freshness = useMemo(
     () => deriveFreshness(feed?.meta, dataStatus),
@@ -418,6 +438,27 @@ export default function MandisPage() {
                 onChange={(value) => applyFilters({ mandiId: value })}
               />
             </div>
+
+            {/* Sort by option */}
+            <div className="pt-2 border-t border-outline-variant/30 flex items-center justify-between gap-2">
+              <label htmlFor="mandi-filter-sort" className="flex items-center gap-1.5 text-xs text-on-surface-variant font-medium">
+                <span className="material-symbols-outlined text-[16px] text-primary">swap_vert</span>
+                <span>{t(language, 'mandis.sortBy.label')}:</span>
+              </label>
+              <select
+                id="mandi-filter-sort"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-2.5 py-1.5 bg-surface border border-outline-variant rounded-lg text-on-surface text-xs focus:outline-none focus:border-primary font-medium"
+              >
+                <option value="default">{t(language, 'mandis.sort.default')}</option>
+                <option value="price-desc">{t(language, 'mandis.sort.priceDesc')}</option>
+                <option value="price-asc">{t(language, 'mandis.sort.priceAsc')}</option>
+                <option value="arrivals-desc">{t(language, 'mandis.sort.arrivalsDesc')}</option>
+                <option value="date-desc">{t(language, 'mandis.sort.dateDesc')}</option>
+                <option value="name-asc">{t(language, 'mandis.sort.nameAsc')}</option>
+              </select>
+            </div>
           </div>
 
           {status === 'loading' && (
@@ -462,7 +503,7 @@ export default function MandisPage() {
           )}
 
           <div className="flex flex-col gap-3">
-            {rows.map((row, index) => {
+            {sortedRows.map((row, index) => {
               const nameKey = MANDI_NAME_KEYS.get(row.mandi.code);
               const marketName = nameKey ? t(language, nameKey) : (row.mandi.name ?? row.mandi.code ?? '—');
               const rowKey = String(row.id ?? `${row.mandi.id}-${row.commodity.id}-${row.variety}-${index}`);
