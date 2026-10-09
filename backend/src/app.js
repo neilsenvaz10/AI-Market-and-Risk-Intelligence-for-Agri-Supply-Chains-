@@ -12,6 +12,7 @@ import createFarmerPhase8Routes from './routes/farmerPhase8.routes.js';
 import createAdminPhase8Routes from './routes/adminPhase8.routes.js';
 import createAssistantRoutes from './routes/assistant.routes.js';
 import createRiskRoutes from './routes/risk.routes.js';
+import createScenarioRoutes from './routes/scenario.routes.js';
 import { requireAuth as defaultRequireAuth } from './middleware/auth.js';
 import { createRequireAdminClaim } from './middleware/ingestionAuth.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
@@ -36,6 +37,7 @@ export function createApp({
   copilotRoutesOptions = {},
   assistantRoutesOptions = {},
   riskRoutesOptions = {},
+  scenarioRoutesOptions = {},
 } = {}) {
   const app = express();
   app.locals.welcomeEmail = welcomeEmail;
@@ -100,6 +102,9 @@ export function createApp({
           chat: '/api/copilot/chat',
           capabilities: '/api/copilot/capabilities',
         },
+        scenarios: {
+          simulate: 'POST /api/scenarios/simulate',
+        },
       },
     });
   });
@@ -121,6 +126,7 @@ export function createApp({
   // Phase 8: Admin alert evaluation (requires admin claim)
   app.use('/api/admin', createAdminPhase8Routes(requireAuth, createRequireAdminClaim()));
   app.use('/api/risk', createRiskRoutes(riskRoutesOptions));
+  app.use('/api/scenarios', createScenarioRoutes(scenarioRoutesOptions));
 
   // Error handling
   app.use(notFoundHandler);
