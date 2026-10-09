@@ -201,6 +201,29 @@ export async function getForecast(commodity, mandi, options = {}) {
   return await fetchWithFallback(endpoint);
 }
 
+/**
+ * Phase 6 — Agricultural Risk Intelligence API client.
+ */
+export async function getMandiRisk(commodity, mandi, options = {}) {
+  const params = new URLSearchParams();
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') params.set(key, value);
+  });
+  const query = params.toString();
+  const endpoint = `/api/risk/mandi/${encodeURIComponent(commodity)}/${encodeURIComponent(mandi)}${query ? `?${query}` : ''}`;
+  return await fetchWithFallback(endpoint);
+}
+
+export async function getRiskSummary(options = {}) {
+  const params = new URLSearchParams();
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') params.set(key, value);
+  });
+  const query = params.toString();
+  const endpoint = `/api/risk/summary${query ? `?${query}` : ''}`;
+  return await fetchWithFallback(endpoint);
+}
+
 export default {
   checkBackendHealth,
   checkDatabaseHealth,
@@ -215,5 +238,7 @@ export default {
   triggerMandiSync,
   getMandiQualityReport,
   getForecast,
+  getMandiRisk,
+  getRiskSummary,
   getBaseUrl: () => resolvedApiUrl,
 };

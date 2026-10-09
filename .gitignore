@@ -76,3 +76,5 @@ postgres_data/
 *.json.gz
 *.csv
 frontend/harness-tmp/
+datasets/
+*.xlsx

@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import cors from 'cors';
 import { config } from './config/index.js';
 import healthRoutes from './routes/health.routes.js';
@@ -11,6 +11,7 @@ import createCopilotRoutes from './routes/copilot.routes.js';
 import createFarmerPhase8Routes from './routes/farmerPhase8.routes.js';
 import createAdminPhase8Routes from './routes/adminPhase8.routes.js';
 import createAssistantRoutes from './routes/assistant.routes.js';
+import createRiskRoutes from './routes/risk.routes.js';
 import { requireAuth as defaultRequireAuth } from './middleware/auth.js';
 import { createRequireAdminClaim } from './middleware/ingestionAuth.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
@@ -26,7 +27,7 @@ export function createDefaultWelcomeEmailService() {
 
 /**
  * Builds the Express app. `requireAuth`, `welcomeEmail`, `mandiRoutesOptions` and
- * `copilotRoutesOptions` are injectable so tests can supply fake dependencies.
+ * `copilotRoutesOptions` and `riskRoutesOptions` are injectable so tests can supply fake dependencies.
  */
 export function createApp({
   requireAuth = defaultRequireAuth,
@@ -34,6 +35,7 @@ export function createApp({
   mandiRoutesOptions = {},
   copilotRoutesOptions = {},
   assistantRoutesOptions = {},
+  riskRoutesOptions = {},
 } = {}) {
   const app = express();
   app.locals.welcomeEmail = welcomeEmail;
@@ -56,7 +58,7 @@ export function createApp({
     res.json({
       name: 'FASALYTICS API Backend',
       version: '1.0.0',
-      phase: 'Phase 5 - Mandi Data Pipeline',
+      phase: 'Phase 6 - Agricultural Risk Intelligence',
       endpoints: {
         health: '/api/health',
         databaseHealth: '/api/health/database',
@@ -71,6 +73,11 @@ export function createApp({
         forecast: {
           byCommodityAndMandi: '/api/forecast/:commodity/:mandi',
           query: '?horizon=1..7&modelVersion=<version>&includeSample=false&order=ASC|DESC',
+        },
+        risk: {
+          byCommodityAndMandi: '/api/risk/mandi/:commodity/:mandi',
+          summary: '/api/risk/summary',
+          query: '?includeSample=false&referenceDate=YYYY-MM-DD',
         },
         mandi: {
           mandis: '/api/mandi/mandis',
@@ -113,6 +120,7 @@ export function createApp({
   app.use('/api/farmer', createFarmerPhase8Routes(requireAuth));
   // Phase 8: Admin alert evaluation (requires admin claim)
   app.use('/api/admin', createAdminPhase8Routes(requireAuth, createRequireAdminClaim()));
+  app.use('/api/risk', createRiskRoutes(riskRoutesOptions));
 
   // Error handling
   app.use(notFoundHandler);

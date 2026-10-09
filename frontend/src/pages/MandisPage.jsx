@@ -598,6 +598,13 @@ export default function MandisPage() {
                     <span>{t(language, 'mandis.viewRoute')}</span>
                     <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
                   </Link>
+                  <Link
+                    to="/risk"
+                    className="mt-2 w-full py-2 bg-primary/10 hover:bg-primary/20 text-primary text-center font-bold text-body-sm rounded-lg transition-colors flex items-center justify-center gap-1"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">shield_with_heart</span>
+                    <span>{t(language, 'risk.title')}</span>
+                  </Link>
                 </div>
               );
             })}
